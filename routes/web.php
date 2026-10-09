@@ -33,23 +33,28 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Asset Management Routes protected by role middleware (Admin and Staff)
-Route::middleware(['auth', 'role:Admin|Staff'])->group(function () {
-    // Asset Registry
-    Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
-    Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
 
-    // Asset Modification
-    Route::get('/asset-modifications', [AssetModificationController::class, 'index'])->name('asset-modifications.index');
-    Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->name('asset-modifications.store');
 
-    // Asset Sale
-    Route::get('/asset-sales', [AssetSaleController::class, 'index'])->name('asset-sales.index');
-    Route::post('/asset-sales', [AssetSaleController::class, 'store'])->name('asset-sales.store');
+// Staff & Admin can access these
+Route::middleware(['auth', 'permission:register assets'])->group(function () {
+    Route::get('/assets', [AssetController::class, 'index']);
+    Route::post('/assets', [AssetController::class, 'store']);
+});
 
-    // Asset Disposal
-    Route::get('/asset-disposals', [AssetDisposalController::class, 'index'])->name('asset-disposals.index');
-    Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->name('asset-disposals.store');
+Route::middleware(['auth', 'permission:modify assets'])->group(function () {
+    Route::get('/asset-modifications', [AssetModificationController::class, 'index']);
+    Route::post('/asset-modifications', [AssetModificationController::class, 'store']);
+});
+
+// ONLY Admin can access these
+Route::middleware(['auth', 'permission:sell assets'])->group(function () {
+    Route::get('/asset-sales', [AssetSaleController::class, 'index']);
+    Route::post('/asset-sales', [AssetSaleController::class, 'store']);
+});
+
+Route::middleware(['auth', 'permission:dispose assets'])->group(function () {
+    Route::get('/asset-disposals', [AssetDisposalController::class, 'index']);
+    Route::post('/asset-disposals', [AssetDisposalController::class, 'store']);
 });
 
 require __DIR__.'/auth.php';

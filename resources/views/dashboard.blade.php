@@ -47,6 +47,7 @@
             </a>
 
             <!-- Asset Sale Card -->
+            @can('sell assets')
             <a href="{{ route('asset-sales.index') }}" class="group bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all">
                 <div class="flex items-center gap-4">
                     <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition-colors">
@@ -60,8 +61,17 @@
                     </div>
                 </div>
             </a>
+            <div class="card">
+                <h4>Asset Sale</h4>
+                <p>Log asset sales</p>
+            </div>
+            @endcan
+
+
+
 
             <!-- Asset Disposal Card -->
+            @can('dispose assets')
             <a href="{{ route('asset-disposals.index') }}" class="group bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all">
                 <div class="flex items-center gap-4">
                     <div class="p-3 bg-rose-50 text-rose-600 rounded-xl group-hover:bg-rose-600 group-hover:text-white transition-colors">
@@ -75,6 +85,15 @@
                     </div>
                 </div>
             </a>
+            
+            <div class="card">
+                <h4>Asset Disposal</h4>
+                <p>Track scrapped assets</p>
+            </div>
+            @endcan
+
+
+
         </div>
     </div>
 </x-app-layout>
