@@ -13,6 +13,7 @@ class Asset extends Model
     protected $fillable = [
         'asset_code',
         'asset_type_id',
+        'asset_sub_type_id',
         'brand_name',
         'model',
         'financial_year',
@@ -47,5 +48,15 @@ class Asset extends Model
     public function disposals()
     {
         return $this->hasMany(AssetDisposal::class);
+    }
+
+    public function sale()
+    {
+        return $this->hasOne(AssetSale::class, 'asset_id');
+    }
+
+    public function disposal()
+    {
+        return $this->hasOne(AssetDisposal::class, 'asset_id');
     }
 }

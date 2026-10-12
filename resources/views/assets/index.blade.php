@@ -26,6 +26,18 @@
                     </div>
 
                     <div class="form-group">
+                        <label class="form-label">Asset Sub Type <span class="required">*</span></label>
+                        <select name="asset_sub_type_id" class="form-select" required>
+                            <option value="">-- Select Asset Sub Type --</option>
+                            @foreach ($assetSubTypes as $subType)
+                                <option value="{{ $subType->id }}" {{ old('asset_sub_type_id') == $subType->id ? 'selected' : '' }}>
+                                    {{ $subType->sub_type_name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label class="form-label">Brand Name</label>
                         <input type="text" name="brand_name" value="{{ old('brand_name') }}" class="form-control" placeholder="e.g. Dell" maxlength="100">
                     </div>

@@ -17,12 +17,15 @@ class AssetController extends Controller
     public function index(): View
     {
         $assets = Asset::with('assetType')
+            ->doesntHave('sale')
+            ->doesntHave('disposal')
             ->orderByDesc('id')
             ->paginate(10);
 
         $assetTypes = AssetType::orderBy('type_name')->get();
+        $assetSubTypes = \App\Models\AssetSubType::all();
 
-        return view('assets.index', compact('assets', 'assetTypes'));
+        return view('assets.index', compact('assets', 'assetTypes', 'assetSubTypes'));
     }
 
     /**
@@ -32,6 +35,7 @@ class AssetController extends Controller
     {
         $validated = $request->validate([
             'asset_type_id' => ['required', 'exists:asset_types,id'],
+            'asset_sub_type_id' => ['required', 'exists:asset_sub_types,id'],
             'brand_name' => ['nullable', 'string', 'max:100'],
             'model' => ['nullable', 'string', 'max:100'],
             'financial_year' => ['nullable', 'string', 'max:9'],

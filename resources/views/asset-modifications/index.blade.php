@@ -46,8 +46,18 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Added Asset / Component</label>
-                        <input type="text" name="added_asset" value="{{ old('added_asset') }}" class="form-control" placeholder="e.g. 16GB RAM" maxlength="150">
+                        <label class="form-label">Modification Item <span class="required">*</span></label>
+                        <select name="component_asset_id" class="form-control form-select" required>
+                            <option value="">-- Select Component Asset --</option>
+                            @foreach ($components as $component)
+                                <option value="{{ $component->id }}" {{ old('component_asset_id') == $component->id ? 'selected' : '' }}>
+                                    {{ $component->asset_code }} - {{ $component->brand_name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('component_asset_id')
+                            <div class="error-text">{{ $message }}</div>
+                        @enderror
                     </div>
 
                     <div class="form-group">
