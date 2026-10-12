@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetDisposalController;
 use App\Http\Controllers\AssetModificationController;
@@ -55,6 +56,10 @@ Route::middleware(['auth', 'permission:sell assets'])->group(function () {
 Route::middleware(['auth', 'permission:dispose assets'])->group(function () {
     Route::get('/asset-disposals', [AssetDisposalController::class, 'index'])->name('asset-disposals.index');
     Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->name('asset-disposals.store');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
 });
 
 require __DIR__.'/auth.php';

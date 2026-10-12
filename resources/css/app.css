@@ -402,3 +402,32 @@ a:hover {
     width: 100%;
 }
 
+/* Badges */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    border-radius: 9999px;
+}
+
+.badge-success {
+    background-color: var(--success-bg);
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.badge-danger {
+    background-color: var(--error-bg);
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.badge-secondary {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+

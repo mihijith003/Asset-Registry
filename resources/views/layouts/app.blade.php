@@ -33,6 +33,9 @@
                 <a href="{{ route('asset-disposals.index') }}" class="nav-item {{ request()->routeIs('asset-disposals.*') ? 'active' : '' }}">
                     Asset Disposal
                 </a>
+                <a href="{{ route('activity-logs.index') }}" class="nav-item {{ request()->routeIs('activity-logs.*') ? 'active' : '' }}">
+                    Activity Logs
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -71,7 +74,7 @@
                     </div>
                 @endif
 
-                @if ($errors->any())
+                @if (isset($errors) && $errors->any())
                     <div class="alert alert-error">
                         <strong>Please fix the following errors:</strong>
                         <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
