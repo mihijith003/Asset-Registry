@@ -19,7 +19,45 @@ class Asset extends Model
         'financial_year',
         'location',
         'cost',
+        'merged_into_asset_id', // NEW: set on the original assets once they are combined into a new asset
     ];
+
+    /**
+     * NEW: generate a unique asset code (same AST-YYYY-XXXXX format the registry uses).
+     */
+    public static function generateCode(): string
+    {
+        do {
+            $code = 'AST-' . date('Y') . '-' . strtoupper(Str::random(5));
+        } while (static::where('asset_code', $code)->exists());
+
+        return $code;
+    }
+
+    /**
+     * NEW: "active" assets - not sold, not disposed and not merged into a combined asset.
+     * Only these can be listed in the registry or used in a new sale/modification.
+     */
+    public function scopeActive($query)
+    {
+        return $query->doesntHave('sale')->doesntHave('disposal')->whereNull('merged_into_asset_id');
+    }
+
+    /**
+     * NEW: the original assets that were combined to create this asset (empty for normal assets).
+     */
+    public function components()
+    {
+        return $this->hasMany(Asset::class, 'merged_into_asset_id');
+    }
+
+    /**
+     * NEW: the combined asset this asset was merged into (null if it has not been merged).
+     */
+    public function mergedInto()
+    {
+        return $this->belongsTo(Asset::class, 'merged_into_asset_id');
+    }
 
     protected static function booted()
     {

@@ -99,7 +99,19 @@
                         <tr>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">{{ $asset->asset_code }}</td>
                             <td>{{ $asset->assetType->type_name ?? 'N/A' }}</td>
-                            <td>{{ $asset->brand_name ?? '-' }} {{ $asset->model ? '(' . $asset->model . ')' : '' }}</td>
+                            <td>
+                                {{ $asset->brand_name ?? '-' }} {{ $asset->model ? '(' . $asset->model . ')' : '' }}
+                                {{-- NEW: flag combined assets and say which assets they were made from --}}
+                                @if ($asset->components->isNotEmpty())
+                                    <div style="margin-top: 0.25rem;">
+                                        <span class="badge badge-secondary">Combined asset</span>
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                        Combination of {{ $asset->components->count() }} previous assets:
+                                        {{ $asset->components->map(fn ($c) => $c->asset_code . ' (' . trim($c->brand_name . ' ' . $c->model) . ')')->join(' + ') }}
+                                    </div>
+                                @endif
+                            </td>
                             <td>{{ $asset->financial_year ?? '-' }}</td>
                             <td>{{ $asset->location ?? '-' }}</td>
                             <td class="text-right" style="font-weight: 500;">{{ number_format($asset->cost, 2) }}</td>

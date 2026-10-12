@@ -16,9 +16,15 @@ class AssetController extends Controller
      */
     public function index(): View
     {
-        $assets = Asset::with('assetType')
-            ->doesntHave('sale')
-            ->doesntHave('disposal')
+        // CHANGED: uses the active() scope (also hides assets merged into a combined asset) and
+        // loads "components" so combined assets can show what they were made from.
+        // $assets = Asset::with('assetType')
+        //     ->doesntHave('sale')
+        //     ->doesntHave('disposal')
+        //     ->orderByDesc('id')
+        //     ->paginate(10);
+        $assets = Asset::with(['assetType', 'components'])
+            ->active()
             ->orderByDesc('id')
             ->paginate(10);
 

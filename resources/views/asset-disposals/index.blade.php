@@ -11,7 +11,10 @@
         </div>
 
         <div class="card-body">
+            {{-- CHANGED: added id="asset-disposal-form" so the admin password popup can hook into submit.
             <form action="{{ route('asset-disposals.store') }}" method="POST">
+            --}}
+            <form id="asset-disposal-form" action="{{ route('asset-disposals.store') }}" method="POST">
                 @csrf
                 <div class="form-row">
                     <!-- Disposal ID -->
@@ -81,6 +84,9 @@
                     </button>
                 </div>
             </form>
+
+            {{-- NEW: asks for an admin password when "Record Disposal" is clicked --}}
+            <x-admin-password-modal form="asset-disposal-form" />
         </div>
     </div>
 
@@ -104,6 +110,8 @@
                         <th>Asset Code</th>
                         <th>Method</th>
                         <th>Disposal Date</th>
+                        {{-- NEW: shows the admin who authorized the disposal --}}
+                        <th>Authorized By</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -126,10 +134,17 @@
                             <td style="font-size: 0.875rem; color: var(--text-muted);">
                                 {{ $disposal->disposal_date ?? '-' }}
                             </td>
+                            {{-- NEW: authorized-by cell ('-' for older rows recorded before this column existed) --}}
+                            <td>
+                                {{ $disposal->authorized_by ?? '-' }}
+                            </td>
                         </tr>
                     @empty
                         <tr>
+                            {{-- CHANGED: colspan 4 -> 5 for the new "Authorized By" column
                             <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                            --}}
+                            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
                                 No disposals recorded yet.
                             </td>
                         </tr>

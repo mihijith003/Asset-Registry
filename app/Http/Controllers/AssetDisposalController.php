@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Asset;
 use App\Models\AssetDisposal;
+use App\Support\AdminAuthorization; // NEW: admin-password check
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule; // NEW: for the merged-asset check
 use Illuminate\View\View;
 
 class AssetDisposalController extends Controller
@@ -19,7 +21,9 @@ class AssetDisposalController extends Controller
             ->orderByDesc('id')
             ->paginate(10);
 
-        $assets = Asset::orderBy('asset_code')->get();
+        // CHANGED: assets that were merged into a combined asset are no longer disposable.
+        // $assets = Asset::orderBy('asset_code')->get();
+        $assets = Asset::whereNull('merged_into_asset_id')->orderBy('asset_code')->get();
 
         return view('asset-disposals.index', compact('disposals', 'assets'));
     }
@@ -33,15 +37,31 @@ class AssetDisposalController extends Controller
     {
         $validated = $request->validate([
             'disposal_id' => ['required', 'string', 'max:50', 'unique:asset_disposals,disposal_id'],
-            'asset_id' => ['required', 'exists:assets,id'],
+            // CHANGED: also reject assets that were merged into a combined asset.
+            // 'asset_id' => ['required', 'exists:assets,id'],
+            'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')],
             'method' => ['required', 'string', 'max:100'],
+            // NEW: an Admin password must be supplied (via the popup on "Record Disposal").
+            'admin_password' => ['required', 'string'],
         ]);
+
+        // NEW: verify the password against the Admin users. If it doesn't match,
+        // nothing is saved and the user is sent back with their input preserved.
+        $admin = AdminAuthorization::findAdminByPassword($validated['admin_password']);
+
+        if (! $admin) {
+            return back()
+                ->withInput($request->except('admin_password'))
+                ->withErrors(['admin_password' => 'Incorrect admin password. The disposal was not recorded.']);
+        }
 
         AssetDisposal::create([
             'disposal_id' => $validated['disposal_id'],
             'asset_id' => $validated['asset_id'],
             'method' => $validated['method'],
             'disposal_date' => now()->toDateString(),
+            // NEW: record the name of the admin whose password authorized the disposal.
+            'authorized_by' => $admin->name,
         ]);
 
         return redirect()->route('asset-disposals.index')->with('success', 'Asset disposal recorded successfully.');

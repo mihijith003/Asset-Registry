@@ -11,7 +11,10 @@
         </div>
 
         <div class="card-body">
+            {{-- CHANGED: added id="asset-sale-form" so the admin password popup can hook into submit.
             <form action="{{ route('asset-sales.store') }}" method="POST">
+            --}}
+            <form id="asset-sale-form" action="{{ route('asset-sales.store') }}" method="POST">
                 @csrf
                 <div class="form-row">
                     <!-- Sale ID -->
@@ -72,14 +75,16 @@
                         @enderror
                     </div>
 
+                    {{-- CHANGED: "Authorized By" input removed. Authorization is now an admin
+                         password popup shown when "Record Sale" is clicked (see <x-admin-password-modal> below).
                     <!-- Authorized By -->
                     <div class="form-group">
                         <label for="authorized_by" class="form-label">
                             Authorized By
                         </label>
-                        <input type="text" 
-                               id="authorized_by" 
-                               name="authorized_by" 
+                        <input type="text"
+                               id="authorized_by"
+                               name="authorized_by"
                                value="{{ old('authorized_by') }}"
                                placeholder="e.g. Finance Manager"
                                maxlength="100"
@@ -88,6 +93,7 @@
                             <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
                         @enderror
                     </div>
+                    --}}
                 </div>
 
                 <div class="form-actions">
@@ -99,6 +105,9 @@
                     </button>
                 </div>
             </form>
+
+            {{-- NEW: asks for an admin password when "Record Sale" is clicked --}}
+            <x-admin-password-modal form="asset-sale-form" />
         </div>
     </div>
 

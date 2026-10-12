@@ -44,18 +44,24 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {
     Route::get('/asset-modifications', [AssetModificationController::class, 'index'])->name('asset-modifications.index');
-    Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->name('asset-modifications.store');
+    // CHANGED: throttled (10 attempts/minute) because this endpoint now checks an admin password.
+    // Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->name('asset-modifications.store');
+    Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->middleware('throttle:10,1')->name('asset-modifications.store');
 });
 
 // ONLY Admin can access these
 Route::middleware(['auth', 'permission:sell assets'])->group(function () {
     Route::get('/asset-sales', [AssetSaleController::class, 'index'])->name('asset-sales.index');
-    Route::post('/asset-sales', [AssetSaleController::class, 'store'])->name('asset-sales.store');
+    // CHANGED: throttled (10 attempts/minute) because this endpoint now checks an admin password.
+    // Route::post('/asset-sales', [AssetSaleController::class, 'store'])->name('asset-sales.store');
+    Route::post('/asset-sales', [AssetSaleController::class, 'store'])->middleware('throttle:10,1')->name('asset-sales.store');
 });
 
 Route::middleware(['auth', 'permission:dispose assets'])->group(function () {
     Route::get('/asset-disposals', [AssetDisposalController::class, 'index'])->name('asset-disposals.index');
-    Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->name('asset-disposals.store');
+    // CHANGED: throttled (10 attempts/minute) because this endpoint now checks an admin password.
+    // Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->name('asset-disposals.store');
+    Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->middleware('throttle:10,1')->name('asset-disposals.store');
 });
 
 Route::middleware('auth')->group(function () {
