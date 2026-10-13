@@ -339,6 +339,44 @@ a:hover {
     border-top: 1px solid var(--border-color);
 }
 
+/* Modification form: section headings, hints and the live result preview */
+.form-section-title {
+    margin: 0.5rem 0 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.form-section-hint {
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.form-hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.form-row [hidden],
+.form-group[hidden] {
+    display: none;
+}
+
+.modification-preview {
+    padding: 0.5rem 0.75rem;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius);
+    background-color: var(--bg-main);
+    font-size: 0.875rem;
+}
+
+.modification-preview .muted {
+    color: var(--text-muted);
+}
+
 /* Generic modal dialog (used by the Allocate dialog in the asset registry) */
 .modal-overlay {
     position: fixed;

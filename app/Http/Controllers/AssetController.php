@@ -23,7 +23,8 @@ class AssetController extends Controller
         //     ->doesntHave('disposal')
         //     ->orderByDesc('id')
         //     ->paginate(10);
-        $assets = Asset::with(['assetType', 'components', 'allocations']) // NEW: allocations (newest first = current + history)
+        // NEW: allocations (newest first = current + history); originAsset / removalModification trace removed components
+        $assets = Asset::with(['assetType', 'components', 'allocations', 'originAsset', 'removalModification.asset'])
             ->active()
             ->orderByDesc('id')
             ->get(); // CHANGED: DataTables does the paging/search/sort in the browser

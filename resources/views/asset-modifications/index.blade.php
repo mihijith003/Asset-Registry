@@ -6,13 +6,10 @@
         <div class="card-header">
             <div>
                 <h3>Record Asset Modification</h3>
-                <p>Record physical or valuation changes to an existing asset.</p>
+                <p>Upgrade or downgrade an asset by adding a component, or by swapping a component for another one.</p>
             </div>
         </div>
         <div class="card-body">
-            {{-- CHANGED: added id="asset-modification-form" so the admin password popup can hook into submit.
-            <form action="{{ route('asset-modifications.store') }}" method="POST">
-            --}}
             <form id="asset-modification-form" action="{{ route('asset-modifications.store') }}" method="POST">
                 @csrf
                 <div class="form-row">
@@ -23,11 +20,10 @@
 
                     <div class="form-group">
                         <label class="form-label">Asset <span class="required">*</span></label>
-                        {{-- CHANGED: added id="asset_id" (used by the script below). Only active assets are listed. --}}
                         <select name="asset_id" id="asset_id" class="form-select" required>
                             <option value="">-- Select Asset --</option>
                             @foreach ($assets as $asset)
-                                <option value="{{ $asset->id }}" {{ old('asset_id') == $asset->id ? 'selected' : '' }}>
+                                <option value="{{ $asset->id }}" data-cost="{{ $asset->cost }}" {{ old('asset_id') == $asset->id ? 'selected' : '' }}>
                                     {{ $asset->asset_code }} - {{ $asset->brand_name }} {{ $asset->model }}
                                 </option>
                             @endforeach
@@ -39,55 +35,87 @@
                         <input type="date" name="modification_date" value="{{ old('modification_date', date('Y-m-d')) }}" class="form-control" required>
                     </div>
 
-                    {{-- CHANGED: "Authorized By" input removed. Authorization is now an admin
-                         password popup shown when "Record Modification" is clicked (see <x-admin-password-modal> below).
-                    <div class="form-group">
-                        <label class="form-label">Authorized By</label>
-                        <input type="text" name="authorized_by" value="{{ old('authorized_by') }}" class="form-control" placeholder="e.g. Officer Name" maxlength="150">
-                    </div>
-                    --}}
-
-                    {{-- CHANGED: "Removed Asset / Component" was a free-text box. It is now a dropdown that lists
-                         the item(s) that were added to the selected asset. Choosing one REVERTS that modification.
-                    <div class="form-group">
-                        <label class="form-label">Removed Asset / Component</label>
-                        <input type="text" name="removed_asset" value="{{ old('removed_asset') }}" class="form-control" placeholder="e.g. 8GB RAM" maxlength="150">
-                    </div>
-                    --}}
-                    <div class="form-group">
-                        <label class="form-label">Removed Asset / Component</label>
-                        <select name="removed_asset_id" id="removed_asset_id" class="form-control form-select"></select>
-                        <small id="removed_asset_hint" style="display: block; margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-muted);"></small>
-                    </div>
-
-                    <div class="form-group">
-                        {{-- CHANGED: no longer always required - it is disabled when reverting (see script below) --}}
-                        <label class="form-label">Modification Item <span class="required" id="component_required_mark">*</span></label>
-                        <select name="component_asset_id" id="component_asset_id" class="form-control form-select" required>
-                            <option value="">-- Select Component Asset --</option>
-                            @foreach ($components as $component)
-                                <option value="{{ $component->id }}" {{ old('component_asset_id') == $component->id ? 'selected' : '' }}>
-                                    {{ $component->asset_code }} - {{ $component->brand_name }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('component_asset_id')
-                            <div class="error-text">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">New Value (LKR)</label>
-                        <input type="number" name="new_value" value="{{ old('new_value') }}" class="form-control" step="0.01" min="0" placeholder="0.00">
-                    </div>
-
                     <div class="form-group">
                         <label class="form-label">New Location</label>
                         <input type="text" name="new_location" value="{{ old('new_location') }}" class="form-control" placeholder="e.g. Branch B" maxlength="100">
                     </div>
                 </div>
 
-                {{-- NEW: optional notes from the person recording the modification --}}
+                {{-- Component that is taken OUT (optional). It is registered as an asset of its own, with this price. --}}
+                <h4 class="form-section-title">Component removed <span class="form-section-hint">(optional)</span></h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Removed Component</label>
+                        <select name="removed_part" id="removed_part" class="form-select"></select>
+                        <small class="form-hint" id="removed_part_hint"></small>
+                        @error('removed_part')
+                            <div class="error-text">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="form-group" data-removed-new hidden>
+                        <label class="form-label">Brand <span class="required">*</span></label>
+                        <input type="text" name="removed_brand" value="{{ old('removed_brand') }}" class="form-control" placeholder="e.g. Kingston" maxlength="100">
+                        @error('removed_brand')
+                            <div class="error-text">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="form-group" data-removed-new hidden>
+                        <label class="form-label">Model</label>
+                        <input type="text" name="removed_model" value="{{ old('removed_model') }}" class="form-control" placeholder="e.g. 8GB DDR4" maxlength="100">
+                    </div>
+
+                    <div class="form-group" data-removed-new hidden>
+                        <label class="form-label">Sub Type</label>
+                        <select name="removed_asset_sub_type_id" class="form-select">
+                            <option value="">-- Same as the asset --</option>
+                            @foreach ($assetSubTypes as $subType)
+                                <option value="{{ $subType->id }}" {{ old('removed_asset_sub_type_id') == $subType->id ? 'selected' : '' }}>{{ $subType->sub_type_name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group" data-removed-new hidden>
+                        <label class="form-label">Originally Came With</label>
+                        <select name="removed_origin_asset_id" id="removed_origin" class="form-select"></select>
+                        <small class="form-hint">The removed component is traced back to this asset in the registry.</small>
+                    </div>
+
+                    <div class="form-group" data-removed-price hidden>
+                        <label class="form-label">Removed Component Price (LKR) <span class="required">*</span></label>
+                        <input type="number" name="removed_price" id="removed_price" value="{{ old('removed_price') }}" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        @error('removed_price')
+                            <div class="error-text">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+
+                {{-- Component that goes IN (always required; it must already be in the registry). --}}
+                <h4 class="form-section-title">Component added</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Modification Item <span class="required">*</span></label>
+                        <select name="component_asset_id" id="component_asset_id" class="form-control form-select" required>
+                            <option value="">-- Select Component Asset --</option>
+                            @foreach ($components as $component)
+                                <option value="{{ $component->id }}" data-cost="{{ $component->cost }}" {{ old('component_asset_id') == $component->id ? 'selected' : '' }}>
+                                    {{ $component->asset_code }} - {{ $component->brand_name }} {{ $component->model }} ({{ number_format($component->cost, 2) }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="form-hint">Components removed in earlier modifications are listed here too.</small>
+                        @error('component_asset_id')
+                            <div class="error-text">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Result</label>
+                        <div id="modification_preview" class="modification-preview">Select an asset and a component.</div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label for="comments" class="form-label">Comments</label>
                     <textarea id="comments" name="comments" rows="3" maxlength="1000" class="form-control" placeholder="Any notes about this modification (optional)">{{ old('comments') }}</textarea>
@@ -98,76 +126,135 @@
 
                 <div class="form-actions">
                     <button type="reset" class="btn btn-secondary">Clear</button>
-                    {{-- CHANGED: added id so the script can relabel it to "Revert Modification" --}}
                     <button type="submit" id="modification_submit" class="btn btn-primary">Record Modification</button>
                 </div>
             </form>
 
-            {{-- NEW: asks for an admin password when "Record Modification" is clicked --}}
+            {{-- Asks for an admin password when "Record Modification" is clicked --}}
             <x-admin-password-modal form="asset-modification-form" />
 
-            {{-- NEW: revert behaviour. Picking an asset fills "Removed Asset / Component" with the item(s)
-                 that were added to it. Choosing one switches the form to REVERT mode: the Modification
-                 Item is disabled and the button reads "Revert Modification". --}}
             <script>
                 (function () {
-                    var revertOptions = @json($revertOptions); // { combinedAssetId: [ {id, label}, ... ] }
-                    var previousRemoved = @json(old('removed_asset_id'));
+                    var partOptions = @json($partOptions); // { assetId: [ {id, label, cost}, ... ] }
+                    var previousPart = @json(old('removed_part'));
+                    var previousOrigin = @json(old('removed_origin_asset_id'));
+                    var originSelect = document.getElementById('removed_origin');
 
                     var assetSelect = document.getElementById('asset_id');
-                    var removedSelect = document.getElementById('removed_asset_id');
-                    var removedHint = document.getElementById('removed_asset_hint');
+                    var partSelect = document.getElementById('removed_part');
+                    var partHint = document.getElementById('removed_part_hint');
+                    var priceInput = document.getElementById('removed_price');
                     var componentSelect = document.getElementById('component_asset_id');
-                    var requiredMark = document.getElementById('component_required_mark');
-                    var submitBtn = document.getElementById('modification_submit');
+                    var preview = document.getElementById('modification_preview');
+                    var form = document.getElementById('asset-modification-form');
+                    var newFields = form.querySelectorAll('[data-removed-new]');
+                    var priceGroup = form.querySelector('[data-removed-price]');
 
-                    function fillRemovedOptions() {
-                        var options = revertOptions[assetSelect.value] || [];
-                        removedSelect.innerHTML = '';
+                    function money(n) {
+                        return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    }
+
+                    function optionCost(select) {
+                        var opt = select.options[select.selectedIndex];
+                        return opt && opt.dataset.cost !== undefined ? parseFloat(opt.dataset.cost) : null;
+                    }
+
+                    // "Removed Component": nothing, one of the asset's original parts, or a typed-in component.
+                    function fillParts() {
+                        var parts = partOptions[assetSelect.value] || [];
+                        partSelect.innerHTML = '';
 
                         var none = document.createElement('option');
                         none.value = '';
-                        none.textContent = options.length ? '-- None (new modification) --' : '-- Nothing to revert --';
-                        removedSelect.appendChild(none);
+                        none.textContent = '-- None (nothing removed) --';
+                        partSelect.appendChild(none);
 
-                        options.forEach(function (opt) {
+                        parts.forEach(function (p) {
                             var o = document.createElement('option');
-                            o.value = opt.id;
-                            o.textContent = opt.label;
-                            removedSelect.appendChild(o);
+                            o.value = p.id;
+                            o.textContent = p.label + ' (original part)';
+                            o.dataset.cost = p.cost;
+                            partSelect.appendChild(o);
                         });
 
-                        removedSelect.disabled = options.length === 0;
-                        removedHint.textContent = options.length
-                            ? 'Select an item to revert: the combined asset is removed and the original assets are restored.'
-                            : 'Only combined assets that were created by a modification can be reverted.';
+                        var other = document.createElement('option');
+                        other.value = 'new';
+                        other.textContent = 'Other component (enter details)';
+                        partSelect.appendChild(other);
+
+                        // "Originally came with": the asset itself or one of the parts it was made from
+                        originSelect.innerHTML = '';
+                        if (assetSelect.value !== '') {
+                            var self = document.createElement('option');
+                            self.value = assetSelect.value;
+                            self.textContent = assetSelect.options[assetSelect.selectedIndex].textContent.trim() + ' (this asset)';
+                            originSelect.appendChild(self);
+                            parts.forEach(function (p) {
+                                var o = document.createElement('option');
+                                o.value = p.id;
+                                o.textContent = p.label;
+                                originSelect.appendChild(o);
+                            });
+                        }
+
+                        partHint.textContent = parts.length
+                            ? 'This asset was made from earlier assets: removing one of them returns it to the registry.'
+                            : 'The removed component is added to the registry as a new asset with the price below.';
                     }
 
                     function updateMode() {
-                        var reverting = removedSelect.value !== '';
+                        var removing = partSelect.value !== '';
+                        var typed = partSelect.value === 'new';
 
-                        componentSelect.disabled = reverting;
-                        componentSelect.required = !reverting;
-                        if (reverting) { componentSelect.value = ''; }
-                        requiredMark.hidden = reverting;
-                        submitBtn.textContent = reverting ? 'Revert Modification' : 'Record Modification';
+                        newFields.forEach(function (el) { el.hidden = !typed; });
+                        priceGroup.hidden = !removing;
+                        priceInput.required = removing;
+                        if (!removing) { priceInput.value = ''; }
 
                         // An asset cannot be combined with itself
                         Array.prototype.forEach.call(componentSelect.options, function (o) {
                             o.disabled = o.value !== '' && o.value === assetSelect.value;
                         });
+
+                        updatePreview();
                     }
 
-                    assetSelect.addEventListener('change', function () { fillRemovedOptions(); updateMode(); });
-                    removedSelect.addEventListener('change', updateMode);
+                    // Live preview: new cost and whether this is an upgrade or a downgrade.
+                    function updatePreview() {
+                        var assetCost = optionCost(assetSelect);
+                        var addedCost = optionCost(componentSelect);
+                        if (assetCost === null || addedCost === null) {
+                            preview.textContent = 'Select an asset and a component.';
+                            return;
+                        }
 
-                    // Form "Clear" button: restore the default mode after the browser resets the fields
-                    document.getElementById('asset-modification-form').addEventListener('reset', function () {
-                        setTimeout(function () { fillRemovedOptions(); updateMode(); }, 0);
+                        var removedPrice = partSelect.value !== '' ? (parseFloat(priceInput.value) || 0) : 0;
+                        var newCost = assetCost - removedPrice + addedCost;
+                        var diff = addedCost - removedPrice;
+                        var label = diff > 0 ? 'Upgrade' : (diff < 0 ? 'Downgrade' : 'Replacement');
+
+                        preview.innerHTML = '<strong>' + label + '</strong> &middot; new asset cost LKR ' + money(newCost)
+                            + ' <span class="muted">(' + (diff >= 0 ? '+' : '-') + money(Math.abs(diff)) + ')</span>';
+                    }
+
+                    assetSelect.addEventListener('change', function () { fillParts(); updateMode(); });
+                    partSelect.addEventListener('change', function () {
+                        // picking an original part suggests its current price (still editable)
+                        var cost = optionCost(partSelect);
+                        priceInput.value = cost !== null ? cost : '';
+                        updateMode();
+                    });
+                    componentSelect.addEventListener('change', updatePreview);
+                    priceInput.addEventListener('input', updatePreview);
+
+                    // Form "Clear" button: restore the default state after the browser resets the fields
+                    form.addEventListener('reset', function () {
+                        setTimeout(function () { fillParts(); updateMode(); }, 0);
                     });
 
-                    fillRemovedOptions();
-                    if (previousRemoved) { removedSelect.value = previousRemoved; } // restore after a validation error
+                    fillParts();
+                    if (previousPart) { partSelect.value = previousPart; } // restore after a validation error
+                    if (previousOrigin) { originSelect.value = previousOrigin; }
                     updateMode();
                 })();
             </script>
@@ -179,17 +266,18 @@
         <div class="card-header">
             <div>
                 <h3>Modification History</h3>
-                <p>Record of all asset modifications and upgrades.</p>
+                <p>Record of all asset upgrades and downgrades.</p>
             </div>
             <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $modifications->count() }}</span>
         </div>
 
         <div class="table-responsive">
-            {{-- CHANGED: DataTables (search / sort / paging) is applied to this table by resources/js/app.js --}}
+            {{-- DataTables (search / sort / paging) is applied to this table by resources/js/app.js --}}
             <table class="table" data-datatable data-empty="No modifications recorded yet.">
                 <thead>
                     <tr>
                         <th>Mod ID</th>
+                        <th>Type</th>
                         <th>Asset</th>
                         <th>Date</th>
                         <th>Removed</th>
@@ -205,9 +293,16 @@
                         <tr>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
                                 {{ $mod->modification_id }}
-                                {{-- NEW: mark modifications that have since been reverted --}}
+                                {{-- modifications made before upgrade/downgrade existed could be reverted --}}
                                 @if ($mod->reverted_at)
                                     <div><span class="badge badge-secondary" title="Reverted on {{ $mod->reverted_at->format('Y-m-d H:i') }}">Reverted</span></div>
+                                @endif
+                            </td>
+                            <td>
+                                @if ($mod->modification_type)
+                                    <span class="badge {{ $mod->modification_type === 'upgrade' ? 'badge-success' : ($mod->modification_type === 'downgrade' ? 'badge-danger' : 'badge-secondary') }}">{{ \App\Models\AssetModification::TYPES[$mod->modification_type] ?? $mod->modification_type }}</span>
+                                @else
+                                    -
                                 @endif
                             </td>
                             <td>
@@ -215,10 +310,15 @@
                                 <div style="font-size: 0.75rem; color: var(--text-muted);">{{ $mod->asset->brand_name ?? '' }} {{ $mod->asset->model ?? '' }}</div>
                             </td>
                             <td>{{ $mod->modification_date }}</td>
-                            <td>{{ $mod->removed_asset ?? '-' }}</td>
+                            <td>
+                                {{ $mod->removed_asset ?? '-' }}
+                                @if ($mod->removed_price !== null)
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Price {{ number_format($mod->removed_price, 2) }}</div>
+                                @endif
+                            </td>
                             <td>
                                 {{ $mod->added_asset ?? '-' }}
-                                {{-- NEW: show the new combined asset this modification created (if it still exists) --}}
+                                {{-- the new combined asset this modification created (if it still exists) --}}
                                 @if ($mod->resultAsset)
                                     <div style="font-size: 0.75rem; color: var(--text-muted);">Combined into {{ $mod->resultAsset->asset_code }}</div>
                                 @endif

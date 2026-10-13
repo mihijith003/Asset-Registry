@@ -109,6 +109,19 @@
                             <td>
                                 {{ $asset->brand_name ?? '-' }} {{ $asset->model ? '(' . $asset->model . ')' : '' }}
                                 {{-- NEW: flag combined assets and say which assets they were made from --}}
+                                {{-- NEW: a component removed in a modification - trace it back to where it came from --}}
+                                @if ($asset->removalModification)
+                                    <div style="margin-top: 0.25rem;">
+                                        <span class="badge badge-danger">Removed component</span>
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                        @if ($asset->originAsset)
+                                            Originally came with {{ $asset->originAsset->asset_code }} ({{ trim($asset->originAsset->brand_name . ' ' . $asset->originAsset->model) }}).
+                                        @endif
+                                        Removed from {{ $asset->removalModification->asset->asset_code ?? 'Asset #' . $asset->removalModification->asset_id }}
+                                        in {{ $asset->removalModification->modification_id }} ({{ $asset->removalModification->modification_date }}).
+                                    </div>
+                                @endif
                                 @if ($asset->components->isNotEmpty())
                                     <div style="margin-top: 0.25rem;">
                                         <span class="badge badge-secondary">Combined asset</span>

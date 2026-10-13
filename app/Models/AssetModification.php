@@ -22,6 +22,14 @@ class AssetModification extends Model
         'removed_asset', 'added_asset', 'new_value', 'new_location', 'authorized_by', 'reverted_at',
         'parent_original_cost', 'component_original_cost', // NEW: costs saved at combine time, restored on revert
         'comments', // NEW: notes from the person recording the modification
+        'modification_type', 'removed_asset_id', 'removed_price', // NEW: upgrade/downgrade + the removed component
+    ];
+
+    // NEW: label shown in the history table
+    public const TYPES = [
+        'upgrade' => 'Upgrade',
+        'downgrade' => 'Downgrade',
+        'replacement' => 'Replacement',
     ];
 
     // NEW: lets $mod->reverted_at be used as a date.

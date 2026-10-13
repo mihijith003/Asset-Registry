@@ -20,6 +20,7 @@ class Asset extends Model
         'location',
         'cost',
         'merged_into_asset_id', // NEW: set on the original assets once they are combined into a new asset
+        'origin_asset_id', // NEW: for a removed component, the asset it originally came with
     ];
 
     /**
@@ -79,6 +80,37 @@ class Asset extends Model
     public function subType()
     {
         return $this->belongsTo(AssetSubType::class, 'asset_sub_type_id');
+    }
+
+    /**
+     * NEW: for a component removed from another asset, the asset it originally came with (null otherwise).
+     */
+    public function originAsset()
+    {
+        return $this->belongsTo(Asset::class, 'origin_asset_id');
+    }
+
+    /**
+     * NEW: the modification in which this asset was removed from another asset (null if it never was).
+     */
+    public function removalModification()
+    {
+        return $this->hasOne(AssetModification::class, 'removed_asset_id')->latestOfMany('id');
+    }
+
+    /**
+     * NEW: ids of every asset this asset was combined from, however many modifications deep.
+     */
+    public function descendantIds(): array
+    {
+        $ids = [];
+
+        foreach ($this->components as $part) {
+            $ids[] = $part->id;
+            $ids = array_merge($ids, $part->descendantIds());
+        }
+
+        return $ids;
     }
 
     /**
