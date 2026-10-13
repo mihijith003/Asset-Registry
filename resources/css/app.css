@@ -90,13 +90,11 @@ a:hover {
     text-decoration: none;
 }
 
-.sidebar-footer {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid var(--border-sidebar);
-    font-size: 0.875rem;
+.header-user {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 1.25rem;
+    font-size: 0.875rem;
 }
 
 .logout-btn {
@@ -340,6 +338,103 @@ a:hover {
     background-color: var(--bg-main);
     border-top: 1px solid var(--border-color);
 }
+
+/* Generic modal dialog (used by the Allocate dialog in the asset registry) */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.modal-overlay[hidden] {
+    display: none;
+}
+
+.modal-box {
+    width: 100%;
+    max-width: 440px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25);
+}
+
+.modal-box h3 {
+    margin-bottom: 0.25rem;
+}
+
+.modal-sub {
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+}
+
+.modal-history {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.8125rem;
+}
+
+.modal-history ul {
+    list-style: none;
+    max-height: 140px;
+    overflow-y: auto;
+}
+
+.modal-history li {
+    padding: 0.25rem 0;
+}
+
+.modal-history .muted {
+    color: var(--text-muted);
+}
+
+/* DataTables: blend its search / length / paging controls into the card */
+.table-responsive .dt-container {
+    font-size: 0.875rem;
+    color: var(--text-main);
+}
+
+.table-responsive .dt-container .dt-layout-row {
+    margin: 0;
+    padding: 0.75rem 1.5rem;
+}
+
+.table-responsive .dt-container .dt-layout-row:has(.dt-scroll),
+.table-responsive .dt-container .dt-layout-row:has(table) {
+    padding: 0;
+}
+
+.table-responsive .dt-container .dt-search input,
+.table-responsive .dt-container .dt-length select {
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    background-color: #fff;
+}
+
+.table-responsive .dt-container .dt-paging .dt-paging-button.current {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff !important;
+}
+
 
 /* Alerts */
 .alert {

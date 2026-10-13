@@ -87,6 +87,15 @@
                     </div>
                 </div>
 
+                {{-- NEW: optional notes from the person recording the modification --}}
+                <div class="form-group">
+                    <label for="comments" class="form-label">Comments</label>
+                    <textarea id="comments" name="comments" rows="3" maxlength="1000" class="form-control" placeholder="Any notes about this modification (optional)">{{ old('comments') }}</textarea>
+                    @error('comments')
+                        <div class="error-text">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 <div class="form-actions">
                     <button type="reset" class="btn btn-secondary">Clear</button>
                     {{-- CHANGED: added id so the script can relabel it to "Revert Modification" --}}
@@ -172,11 +181,12 @@
                 <h3>Modification History</h3>
                 <p>Record of all asset modifications and upgrades.</p>
             </div>
-            <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $modifications->total() }}</span>
+            <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $modifications->count() }}</span>
         </div>
-        
+
         <div class="table-responsive">
-            <table class="table">
+            {{-- CHANGED: DataTables (search / sort / paging) is applied to this table by resources/js/app.js --}}
+            <table class="table" data-datatable data-empty="No modifications recorded yet.">
                 <thead>
                     <tr>
                         <th>Mod ID</th>
@@ -187,10 +197,11 @@
                         <th class="text-right">New Value</th>
                         <th>New Location</th>
                         <th>Authorized By</th>
+                        <th>Comments</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($modifications as $mod)
+                    @foreach ($modifications as $mod)
                         <tr>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
                                 {{ $mod->modification_id }}
@@ -212,23 +223,14 @@
                                     <div style="font-size: 0.75rem; color: var(--text-muted);">Combined into {{ $mod->resultAsset->asset_code }}</div>
                                 @endif
                             </td>
-                            <td class="text-right" style="font-weight: 500;">{{ $mod->new_value !== null ? number_format($mod->new_value, 2) : '-' }}</td>
+                            <td class="text-right" style="font-weight: 500;" data-order="{{ $mod->new_value ?? -1 }}">{{ $mod->new_value !== null ? number_format($mod->new_value, 2) : '-' }}</td>
                             <td>{{ $mod->new_location ?? '-' }}</td>
                             <td>{{ $mod->authorized_by ?? '-' }}</td>
+                            <td style="white-space: pre-line; max-width: 260px;">{{ $mod->comments ?: '-' }}</td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">No modifications recorded yet.</td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
-
-        @if ($modifications->hasPages())
-            <div class="table-pagination">
-                {{ $modifications->links() }}
-            </div>
-        @endif
     </div>
 </x-app-layout>

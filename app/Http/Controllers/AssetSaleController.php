@@ -19,7 +19,7 @@ class AssetSaleController extends Controller
     {
         $sales = AssetSale::with('asset')
             ->orderByDesc('id')
-            ->paginate(10);
+            ->get(); // CHANGED: DataTables does the paging/search/sort in the browser
 
         // CHANGED: assets that were merged into a combined asset are no longer sellable.
         // $assets = Asset::orderBy('asset_code')->get();
@@ -41,6 +41,7 @@ class AssetSaleController extends Controller
             // 'asset_id' => ['required', 'exists:assets,id'],
             'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')],
             'price' => ['required', 'numeric', 'min:0'],
+            'comments' => ['nullable', 'string', 'max:1000'], // NEW: optional notes
             // CHANGED: the free-text "authorized_by" input was removed from the form.
             // 'authorized_by' => ['nullable', 'string', 'max:100'],
             // NEW: an Admin password must now be supplied (via the popup on "Record Sale").
@@ -68,6 +69,7 @@ class AssetSaleController extends Controller
             // NEW: record the name of the admin whose password authorized the sale.
             'authorized_BY' => $admin->name,
             'sale_date' => now()->toDateString(),
+            'comments' => $validated['comments'] ?? null,
         ]);
 
         // CHANGED: also pass the voucher link so the page can offer "Print document" straight away.

@@ -19,7 +19,7 @@ class AssetDisposalController extends Controller
     {
         $disposals = AssetDisposal::with('asset')
             ->orderByDesc('id')
-            ->paginate(10);
+            ->get(); // CHANGED: DataTables does the paging/search/sort in the browser
 
         // Assets that were merged into a combined asset are no longer disposable.
         // $assets = Asset::orderBy('asset_code')->get();
@@ -42,6 +42,7 @@ class AssetDisposalController extends Controller
             
             'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')],
             'method' => ['required', 'string', 'max:100'],
+            'comments' => ['nullable', 'string', 'max:1000'], // NEW: optional notes
 
             // An Admin password must be supplied (via the popup on "Record Disposal").
             'admin_password' => ['required', 'string'],
@@ -66,6 +67,7 @@ class AssetDisposalController extends Controller
             'disposal_date' => now()->toDateString(),
             // Record the name of the admin whose password authorized the disposal.
             'authorized_by' => $admin->name,
+            'comments' => $validated['comments'] ?? null,
         ]);
 
         // Also pass the document link so the page can offer "Print document" straight away.

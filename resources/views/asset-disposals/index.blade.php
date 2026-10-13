@@ -83,6 +83,15 @@
                     </div>
                 </div>
 
+                {{-- NEW: optional notes from the person recording the disposal --}}
+                <div class="form-group">
+                    <label for="comments" class="form-label">Comments</label>
+                    <textarea id="comments" name="comments" rows="3" maxlength="1000" class="form-control" placeholder="Any notes about this disposal (optional)">{{ old('comments') }}</textarea>
+                    @error('comments')
+                        <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 <div class="form-actions">
                     <button type="reset" class="btn btn-secondary">
                         Clear
@@ -106,12 +115,13 @@
                 <p>History of assets that have been disposed or retired.</p>
             </div>
             <span style="font-size: 0.875rem; color: var(--text-muted);">
-                Total: {{ $disposals->total() }}
+                Total: {{ $disposals->count() }}
             </span>
         </div>
 
         <div class="table-responsive">
-            <table class="table">
+            {{-- CHANGED: DataTables (search / sort / paging) is applied to this table by resources/js/app.js --}}
+            <table class="table" data-datatable data-empty="No disposals recorded yet.">
                 <thead>
                     <tr>
                         <th>Disposal ID</th>
@@ -120,12 +130,13 @@
                         <th>Disposal Date</th>
                         {{-- NEW: shows the admin who authorized the disposal --}}
                         <th>Authorized By</th>
+                        <th>Comments</th>
                         {{-- NEW: print action column --}}
-                        <th style="text-align: right;">Document</th>
+                        <th class="no-sort" style="text-align: right;">Document</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($disposals as $disposal)
+                    @foreach ($disposals as $disposal)
                         <tr>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
                                 {{ $disposal->disposal_id }}
@@ -148,29 +159,15 @@
                             <td>
                                 {{ $disposal->authorized_by ?? '-' }}
                             </td>
+                            <td style="white-space: pre-line; max-width: 260px;">{{ $disposal->comments ?: '-' }}</td>
                             {{-- NEW: opens the printable disposal record in a new tab --}}
                             <td style="text-align: right;">
                                 <a href="{{ route('asset-disposals.print', $disposal) }}" target="_blank" rel="noopener" class="btn btn-secondary">Print</a>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            {{-- CHANGED: colspan 4 -> 5 for the new "Authorized By" column, then 5 -> 6 for "Document"
-                            <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                            --}}
-                            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                                No disposals recorded yet.
-                            </td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
-
-        @if ($disposals->hasPages())
-            <div class="table-pagination">
-                {{ $disposals->links() }}
-            </div>
-        @endif
     </div>
 </x-app-layout>

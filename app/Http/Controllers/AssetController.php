@@ -23,10 +23,10 @@ class AssetController extends Controller
         //     ->doesntHave('disposal')
         //     ->orderByDesc('id')
         //     ->paginate(10);
-        $assets = Asset::with(['assetType', 'components'])
+        $assets = Asset::with(['assetType', 'components', 'allocations']) // NEW: allocations (newest first = current + history)
             ->active()
             ->orderByDesc('id')
-            ->paginate(10);
+            ->get(); // CHANGED: DataTables does the paging/search/sort in the browser
 
         $assetTypes = AssetType::orderBy('type_name')->get();
         $assetSubTypes = \App\Models\AssetSubType::all();
@@ -45,7 +45,9 @@ class AssetController extends Controller
             'brand_name' => ['nullable', 'string', 'max:100'],
             'model' => ['nullable', 'string', 'max:100'],
             'financial_year' => ['nullable', 'string', 'max:9'],
-            'location' => ['nullable', 'string', 'max:150'],
+            // CHANGED: location is no longer entered at registration - assets are allocated afterwards
+            // (branch or employee) from the registry table.
+            // 'location' => ['nullable', 'string', 'max:150'],
             'cost' => ['required', 'numeric', 'min:0'],
         ]);
 

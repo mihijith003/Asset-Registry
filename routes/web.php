@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AssetAllocationController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetDisposalController;
 use App\Http\Controllers\AssetModificationController;
@@ -39,6 +40,8 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
     Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
+    // NEW: allocate an asset to a branch or an employee (same permission as the registry)
+    Route::post('/assets/{asset}/allocations', [AssetAllocationController::class, 'store'])->name('assets.allocate');
 });
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {

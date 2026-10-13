@@ -81,6 +81,31 @@ class Asset extends Model
         return $this->belongsTo(AssetSubType::class, 'asset_sub_type_id');
     }
 
+    /**
+     * NEW: every allocation of this asset to a branch / employee (newest first).
+     */
+    public function allocations()
+    {
+        return $this->hasMany(AssetAllocation::class)->latest('id');
+    }
+
+    /**
+     * NEW: the asset's current allocation (its newest allocation row, null if never allocated).
+     */
+    public function currentAllocation()
+    {
+        return $this->hasOne(AssetAllocation::class)->latestOfMany();
+    }
+
+    /**
+     * NEW: where the asset is now, as text. Uses the current allocation; assets that were never
+     * allocated fall back to the older free-text "location" column (null when neither exists).
+     */
+    public function getLocationLabelAttribute(): ?string
+    {
+        return $this->currentAllocation?->label ?: ($this->location ?: null);
+    }
+
     public function modifications()
     {
         return $this->hasMany(AssetModification::class);

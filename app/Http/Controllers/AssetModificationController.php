@@ -31,7 +31,7 @@ class AssetModificationController extends Controller
 
         $modifications = AssetModification::with(['asset', 'resultAsset']) // CHANGED: also load the combined asset
             ->orderByDesc('id')
-            ->paginate(10);
+            ->get(); // CHANGED: DataTables does the paging/search/sort in the browser
 
         return view('asset-modifications.index', ['modifications' => $modifications] + $this->formData());
     }
@@ -109,6 +109,7 @@ class AssetModificationController extends Controller
             'modification_date' => ['required', 'date'],
             'new_value' => ['nullable', 'numeric', 'min:0'],
             'new_location' => ['nullable', 'string', 'max:100'],
+            'comments' => ['nullable', 'string', 'max:1000'], // NEW: optional notes
             // CHANGED: the free-text "authorized_by" input was removed from the form.
             'admin_password' => ['required', 'string'],
         ]);
@@ -182,6 +183,17 @@ class AssetModificationController extends Controller
             'cost' => $totalCost,
         ]);
 
+        // NEW: the combined asset stays where the parent asset was allocated, unless a new location
+        // was typed in the form (that text is then shown as its location instead).
+        $parentAllocation = $parent->currentAllocation;
+        if ($parentAllocation && empty($data['new_location'])) {
+            $combined->allocations()->create([
+                'allocation_type' => $parentAllocation->allocation_type,
+                'allocated_to' => $parentAllocation->allocated_to,
+                'allocated_by' => $data['authorized_by'],
+            ]);
+        }
+
         // Remove the two originals from the registry by pointing them at the new asset.
         $parent->update(['merged_into_asset_id' => $combined->id]);
         $component->update(['merged_into_asset_id' => $combined->id]);
@@ -200,6 +212,7 @@ class AssetModificationController extends Controller
             // NEW: save each original's price so a revert can put them back exactly.
             'parent_original_cost' => $parent->cost,
             'component_original_cost' => $component->cost,
+            'comments' => $data['comments'] ?? null,
         ]);
 
         return null;
@@ -267,6 +280,7 @@ class AssetModificationController extends Controller
             'new_value' => $parent->cost,
             'new_location' => $data['new_location'] ?? null,
             'authorized_by' => $data['authorized_by'],
+            'comments' => $data['comments'] ?? null,
         ]);
 
         // Finally remove the combined asset from the registry.

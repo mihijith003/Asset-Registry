@@ -15,6 +15,9 @@
         <tr><th>Disposal date</th><td>{{ $disposal->disposal_date ?? '-' }}</td></tr>
         <tr><th>Method</th><td>{{ $disposal->method }}</td></tr>
         <tr><th>Authorized by</th><td>{{ $disposal->authorized_by ?? '-' }}</td></tr>
+        @if ($disposal->comments)
+            <tr><th>Comments</th><td style="white-space: pre-line;">{{ $disposal->comments }}</td></tr>
+        @endif
     </table>
 
     <h2>Asset disposed</h2>
@@ -24,7 +27,7 @@
             <tr><th>Type</th><td>{{ $asset->assetType->type_name ?? '-' }}{{ $asset->subType ? ' / ' . $asset->subType->sub_type_name : '' }}</td></tr>
             <tr><th>Brand &amp; model</th><td>{{ trim(($asset->brand_name ?? '') . ' ' . ($asset->model ?? '')) ?: '-' }}</td></tr>
             <tr><th>Financial year</th><td>{{ $asset->financial_year ?? '-' }}</td></tr>
-            <tr><th>Last location</th><td>{{ $asset->location ?? '-' }}</td></tr>
+            <tr><th>Last location</th><td>{{ $asset->location_label ?? '-' }}</td></tr>
             <tr class="total-row"><th>Recorded cost (LKR)</th><td class="num">{{ number_format($asset->cost, 2) }}</td></tr>
         @else
             <tr><th>Asset</th><td>Asset #{{ $disposal->asset_id }} (no longer in the registry)</td></tr>

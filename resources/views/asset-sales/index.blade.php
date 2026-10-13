@@ -104,6 +104,15 @@
                     --}}
                 </div>
 
+                {{-- NEW: optional notes from the person recording the sale --}}
+                <div class="form-group">
+                    <label for="comments" class="form-label">Comments</label>
+                    <textarea id="comments" name="comments" rows="3" maxlength="1000" class="form-control" placeholder="Any notes about this sale (optional)">{{ old('comments') }}</textarea>
+                    @error('comments')
+                        <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 <div class="form-actions">
                     <button type="reset" class="btn btn-secondary">
                         Clear
@@ -127,12 +136,13 @@
                 <p>History of assets that have been sold.</p>
             </div>
             <span style="font-size: 0.875rem; color: var(--text-muted);">
-                Total: {{ $sales->total() }}
+                Total: {{ $sales->count() }}
             </span>
         </div>
 
         <div class="table-responsive">
-            <table class="table">
+            {{-- CHANGED: DataTables (search / sort / paging) is applied to this table by resources/js/app.js --}}
+            <table class="table" data-datatable data-empty="No sales recorded yet.">
                 <thead>
                     <tr>
                         <th>Sale ID</th>
@@ -140,12 +150,13 @@
                         <th style="text-align: right;">Price</th>
                         <th>Authorized By</th>
                         <th>Sale Date</th>
+                        <th>Comments</th>
                         {{-- NEW: print action column --}}
-                        <th style="text-align: right;">Document</th>
+                        <th class="no-sort" style="text-align: right;">Document</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($sales as $sale)
+                    @foreach ($sales as $sale)
                         <tr>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
                                 {{ $sale->sales_ID ?? $sale->sale_id }}
@@ -158,7 +169,7 @@
                                     {{ $sale->asset->brand_name ?? '' }} {{ $sale->asset->model ?? '' }}
                                 </div>
                             </td>
-                            <td style="text-align: right; font-weight: 500;">
+                            <td style="text-align: right; font-weight: 500;" data-order="{{ $sale->price }}">
                                 {{ number_format($sale->price, 2) }}
                             </td>
                             <td>
@@ -167,29 +178,15 @@
                             <td style="font-size: 0.875rem; color: var(--text-muted);">
                                 {{ $sale->sale_date ?? '-' }}
                             </td>
+                            <td style="white-space: pre-line; max-width: 260px;">{{ $sale->comments ?: '-' }}</td>
                             {{-- NEW: opens the printable voucher in a new tab --}}
                             <td style="text-align: right;">
                                 <a href="{{ route('asset-sales.print', $sale) }}" target="_blank" rel="noopener" class="btn btn-secondary">Print</a>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            {{-- CHANGED: colspan 5 -> 6 for the new "Document" column
-                            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                            --}}
-                            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                                No sales recorded yet.
-                            </td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
-
-        @if ($sales->hasPages())
-            <div class="table-pagination">
-                {{ $sales->links() }}
-            </div>
-        @endif
     </div>
 </x-app-layout>

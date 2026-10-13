@@ -34,16 +34,6 @@
                     Asset Disposal
                 </a>
             </nav>
-
-            <div class="sidebar-footer">
-                @auth
-                    <div>{{ Auth::user()->name }}</div>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit" class="logout-btn">Logout</button>
-                    </form>
-                @endauth
-            </div>
         </aside>
 
         <!-- Main Content -->
@@ -56,6 +46,16 @@
                         @yield('header', 'Overview')
                     @endif
                 </div>
+
+                @auth
+                    <div class="header-user">
+                        <span>{{ Auth::user()->name }}</span>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="logout-btn">Logout</button>
+                        </form>
+                    </div>
+                @endauth
             </header>
 
             <main class="content-container">

@@ -21,6 +21,7 @@ class AssetSale extends Model
         'price',
         'authorized_by',
         'authorized_BY',
+        'comments', // NEW: notes from the person recording the sale
     ];
 
     public function asset()
