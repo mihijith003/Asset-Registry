@@ -124,8 +124,9 @@ class AssetModificationController extends Controller
 
         $error = null;
         $type = null;
-        DB::transaction(function () use ($validated, &$error, &$type) {
-            [$error, $type] = $this->modify($validated);
+        $restoredCode = null;
+        DB::transaction(function () use ($validated, &$error, &$type, &$restoredCode) {
+            [$error, $type, $restoredCode] = $this->modify($validated) + [null, null, null];
         });
 
         if ($error) {
@@ -135,7 +136,10 @@ class AssetModificationController extends Controller
 
         return redirect()->route('asset-modifications.index')->with(
             'success',
-            'Asset modification recorded (' . strtolower(AssetModification::TYPES[$type]) . '). The assets were combined into a new asset'
+            'Asset modification recorded (' . strtolower(AssetModification::TYPES[$type]) . '). '
+                . ($restoredCode
+                    ? 'This undid an earlier modification, so the original asset ' . $restoredCode . ' is back in the registry under its original code'
+                    : 'The assets were combined into a new asset')
                 . (! empty($validated['removed_part']) ? ' and the removed component was returned to the registry.' : '.')
         );
     }
@@ -255,16 +259,42 @@ class AssetModificationController extends Controller
         $brand = $this->joinNames($parent->brand_name, $component->brand_name, $removed?->brand_name ?? ($data['removed_brand'] ?? null));
         $model = $this->joinNames($parent->model, $component->model, $removed?->model ?? ($data['removed_model'] ?? null));
 
-        $combined = Asset::create([
-            'asset_code' => Asset::generateCode(),
-            'asset_type_id' => $parent->asset_type_id,
-            'asset_sub_type_id' => $parent->asset_sub_type_id,
-            'brand_name' => $brand ?: null,
-            'model' => $model ?: null,
-            'financial_year' => $parent->financial_year,
-            'location' => ($data['new_location'] ?? null) ?: $parent->location,
-            'cost' => $totalCost,
-        ]);
+        // Undoing an earlier modification: this asset is the result of modification M, the part being removed now is the
+        // one that replaced a component in M, and the component being added now is the one M removed. The result is then
+        // the asset M started from, so that asset gets its ORIGINAL id back instead of a new one being created.
+        $original = null;
+        if ($removedPart !== null && $removedPart !== 'new') {
+            $earlier = AssetModification::where('removed_asset_id', $component->id)->orderByDesc('id')->first();
+
+            if ($earlier
+                && (int) $earlier->result_asset_id === (int) $parent->id
+                && (int) $earlier->component_asset_id === (int) $removedPart) {
+                $candidate = Asset::find($earlier->asset_id);
+
+                if ($candidate && (int) $candidate->merged_into_asset_id === (int) $parent->id) {
+                    $original = $candidate;
+                }
+            }
+        }
+
+        if ($original) {
+            $combined = $original;
+            $combined->merged_into_asset_id = null; // back in the registry under its original code
+            $combined->cost = $totalCost;
+            $combined->save();
+            $combined->layers()->delete();
+        } else {
+            $combined = Asset::create([
+                'asset_code' => Asset::generateCode(),
+                'asset_type_id' => $parent->asset_type_id,
+                'asset_sub_type_id' => $parent->asset_sub_type_id,
+                'brand_name' => $brand ?: null,
+                'model' => $model ?: null,
+                'financial_year' => $parent->financial_year,
+                'location' => ($data['new_location'] ?? null) ?: $parent->location,
+                'cost' => $totalCost,
+            ]);
+        }
 
         // The combined asset's layers: what is left of the asset plus the added component, each with its own start date.
         foreach (array_merge($parentLayers, $componentLayers) as $layer) {
@@ -306,7 +336,7 @@ class AssetModificationController extends Controller
             'comments' => $data['comments'] ?? null,
         ]);
 
-        return [null, $type];
+        return [null, $type, $original?->asset_code];
     }
 
     /**
