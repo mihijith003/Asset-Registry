@@ -83,6 +83,15 @@
                     </div>
                 </div>
 
+                {{-- NEW: optional notes from the person recording the disposal --}}
+                <div class="form-group">
+                    <label for="comments" class="form-label">Comments</label>
+                    <textarea id="comments" name="comments" rows="3" maxlength="1000" class="form-control" placeholder="Any notes about this disposal (optional)">{{ old('comments') }}</textarea>
+                    @error('comments')
+                        <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 <div class="form-actions">
                     <button type="reset" class="btn btn-secondary">
                         Clear
@@ -120,6 +129,7 @@
                         <th>Disposal Date</th>
                         {{-- NEW: shows the admin who authorized the disposal --}}
                         <th>Authorized By</th>
+                        <th>Comments</th>
                         {{-- NEW: print action column --}}
                         <th style="text-align: right;">Document</th>
                     </tr>
@@ -148,6 +158,7 @@
                             <td>
                                 {{ $disposal->authorized_by ?? '-' }}
                             </td>
+                            <td style="white-space: pre-line; max-width: 260px;">{{ $disposal->comments ?: '-' }}</td>
                             {{-- NEW: opens the printable disposal record in a new tab --}}
                             <td style="text-align: right;">
                                 <a href="{{ route('asset-disposals.print', $disposal) }}" target="_blank" rel="noopener" class="btn btn-secondary">Print</a>
@@ -158,7 +169,7 @@
                             {{-- CHANGED: colspan 4 -> 5 for the new "Authorized By" column, then 5 -> 6 for "Document"
                             <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
                             --}}
-                            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
                                 No disposals recorded yet.
                             </td>
                         </tr>

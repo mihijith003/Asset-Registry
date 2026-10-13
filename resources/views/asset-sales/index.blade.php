@@ -104,6 +104,15 @@
                     --}}
                 </div>
 
+                {{-- NEW: optional notes from the person recording the sale --}}
+                <div class="form-group">
+                    <label for="comments" class="form-label">Comments</label>
+                    <textarea id="comments" name="comments" rows="3" maxlength="1000" class="form-control" placeholder="Any notes about this sale (optional)">{{ old('comments') }}</textarea>
+                    @error('comments')
+                        <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 <div class="form-actions">
                     <button type="reset" class="btn btn-secondary">
                         Clear
@@ -140,6 +149,7 @@
                         <th style="text-align: right;">Price</th>
                         <th>Authorized By</th>
                         <th>Sale Date</th>
+                        <th>Comments</th>
                         {{-- NEW: print action column --}}
                         <th style="text-align: right;">Document</th>
                     </tr>
@@ -167,6 +177,7 @@
                             <td style="font-size: 0.875rem; color: var(--text-muted);">
                                 {{ $sale->sale_date ?? '-' }}
                             </td>
+                            <td style="white-space: pre-line; max-width: 260px;">{{ $sale->comments ?: '-' }}</td>
                             {{-- NEW: opens the printable voucher in a new tab --}}
                             <td style="text-align: right;">
                                 <a href="{{ route('asset-sales.print', $sale) }}" target="_blank" rel="noopener" class="btn btn-secondary">Print</a>
@@ -177,7 +188,7 @@
                             {{-- CHANGED: colspan 5 -> 6 for the new "Document" column
                             <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
                             --}}
-                            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
                                 No sales recorded yet.
                             </td>
                         </tr>

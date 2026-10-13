@@ -15,6 +15,7 @@ class AssetDisposal extends Model
         'method',
         'disposal_date',
         'authorized_by', // NEW: name of the admin who authorized the disposal
+        'comments', // NEW: notes from the person recording the disposal
     ];
 
     public function asset()

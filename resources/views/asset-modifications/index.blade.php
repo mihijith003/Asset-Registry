@@ -87,6 +87,15 @@
                     </div>
                 </div>
 
+                {{-- NEW: optional notes from the person recording the modification --}}
+                <div class="form-group">
+                    <label for="comments" class="form-label">Comments</label>
+                    <textarea id="comments" name="comments" rows="3" maxlength="1000" class="form-control" placeholder="Any notes about this modification (optional)">{{ old('comments') }}</textarea>
+                    @error('comments')
+                        <div class="error-text">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 <div class="form-actions">
                     <button type="reset" class="btn btn-secondary">Clear</button>
                     {{-- CHANGED: added id so the script can relabel it to "Revert Modification" --}}
@@ -187,6 +196,7 @@
                         <th class="text-right">New Value</th>
                         <th>New Location</th>
                         <th>Authorized By</th>
+                        <th>Comments</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -215,10 +225,11 @@
                             <td class="text-right" style="font-weight: 500;">{{ $mod->new_value !== null ? number_format($mod->new_value, 2) : '-' }}</td>
                             <td>{{ $mod->new_location ?? '-' }}</td>
                             <td>{{ $mod->authorized_by ?? '-' }}</td>
+                            <td style="white-space: pre-line; max-width: 260px;">{{ $mod->comments ?: '-' }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">No modifications recorded yet.</td>
+                            <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 2rem;">No modifications recorded yet.</td>
                         </tr>
                     @endforelse
                 </tbody>

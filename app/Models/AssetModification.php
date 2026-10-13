@@ -21,6 +21,7 @@ class AssetModification extends Model
         'modification_id', 'asset_id', 'component_asset_id', 'result_asset_id', 'modification_date',
         'removed_asset', 'added_asset', 'new_value', 'new_location', 'authorized_by', 'reverted_at',
         'parent_original_cost', 'component_original_cost', // NEW: costs saved at combine time, restored on revert
+        'comments', // NEW: notes from the person recording the modification
     ];
 
     // NEW: lets $mod->reverted_at be used as a date.

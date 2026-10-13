@@ -22,6 +22,9 @@
         @if ($sale->buyer_name)
             <tr><th>Buyer</th><td>{{ $sale->buyer_name }}{{ $sale->buyer_contact ? ' (' . $sale->buyer_contact . ')' : '' }}</td></tr>
         @endif
+        @if ($sale->comments)
+            <tr><th>Comments</th><td style="white-space: pre-line;">{{ $sale->comments }}</td></tr>
+        @endif
     </table>
 
     <h2>Asset sold</h2>

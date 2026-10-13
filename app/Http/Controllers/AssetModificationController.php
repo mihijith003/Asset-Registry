@@ -109,6 +109,7 @@ class AssetModificationController extends Controller
             'modification_date' => ['required', 'date'],
             'new_value' => ['nullable', 'numeric', 'min:0'],
             'new_location' => ['nullable', 'string', 'max:100'],
+            'comments' => ['nullable', 'string', 'max:1000'], // NEW: optional notes
             // CHANGED: the free-text "authorized_by" input was removed from the form.
             'admin_password' => ['required', 'string'],
         ]);
@@ -200,6 +201,7 @@ class AssetModificationController extends Controller
             // NEW: save each original's price so a revert can put them back exactly.
             'parent_original_cost' => $parent->cost,
             'component_original_cost' => $component->cost,
+            'comments' => $data['comments'] ?? null,
         ]);
 
         return null;
@@ -267,6 +269,7 @@ class AssetModificationController extends Controller
             'new_value' => $parent->cost,
             'new_location' => $data['new_location'] ?? null,
             'authorized_by' => $data['authorized_by'],
+            'comments' => $data['comments'] ?? null,
         ]);
 
         // Finally remove the combined asset from the registry.

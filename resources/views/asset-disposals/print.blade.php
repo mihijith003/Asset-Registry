@@ -15,6 +15,9 @@
         <tr><th>Disposal date</th><td>{{ $disposal->disposal_date ?? '-' }}</td></tr>
         <tr><th>Method</th><td>{{ $disposal->method }}</td></tr>
         <tr><th>Authorized by</th><td>{{ $disposal->authorized_by ?? '-' }}</td></tr>
+        @if ($disposal->comments)
+            <tr><th>Comments</th><td style="white-space: pre-line;">{{ $disposal->comments }}</td></tr>
+        @endif
     </table>
 
     <h2>Asset disposed</h2>
