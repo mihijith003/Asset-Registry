@@ -5,6 +5,7 @@ use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetDisposalController;
 use App\Http\Controllers\AssetModificationController;
 use App\Http\Controllers\AssetSaleController;
+use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,12 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
     // NEW: allocate an asset to a branch or an employee (same permission as the registry)
     Route::post('/assets/{asset}/allocations', [AssetAllocationController::class, 'store'])->name('assets.allocate');
+});
+
+// NEW: depreciation report + useful-life settings (same permission as the registry)
+Route::middleware(['auth', 'permission:register assets'])->group(function () {
+    Route::get('/depreciation', [DepreciationController::class, 'index'])->name('depreciation.index');
+    Route::post('/depreciation/settings', [DepreciationController::class, 'updateSettings'])->middleware('throttle:10,1')->name('depreciation.settings');
 });
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {

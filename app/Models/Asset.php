@@ -83,6 +83,45 @@ class Asset extends Model
     }
 
     /**
+     * NEW: the layers of cost this asset's depreciation is calculated from.
+     */
+    public function layers()
+    {
+        return $this->hasMany(AssetDepreciationLayer::class)->orderBy('start_date');
+    }
+
+    /**
+     * NEW: one layer for a newly registered asset, starting today, with the life of its sub type.
+     */
+    public function addInitialLayer(): void
+    {
+        $years = $this->subType?->useful_life_years;
+
+        $this->layers()->create([
+            'source_asset_id' => $this->id,
+            'cost' => $this->cost,
+            'start_date' => now()->toDateString(),
+            'useful_life_months' => $years ? $years * 12 : null,
+        ]);
+    }
+
+    /**
+     * NEW: accumulated depreciation as of a date (today by default).
+     */
+    public function accumulatedDepreciation(?\Illuminate\Support\Carbon $asOf = null): float
+    {
+        return \App\Support\Depreciation::accumulated($this->layers, $asOf ?? \Illuminate\Support\Carbon::today());
+    }
+
+    /**
+     * NEW: net book value (cost less accumulated depreciation) as of a date (today by default).
+     */
+    public function netBookValue(?\Illuminate\Support\Carbon $asOf = null): float
+    {
+        return round((float) $this->cost - $this->accumulatedDepreciation($asOf), 2);
+    }
+
+    /**
      * NEW: for a component removed from another asset, the asset it originally came with (null otherwise).
      */
     public function originAsset()

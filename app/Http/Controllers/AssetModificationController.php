@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\AssetModification;
 use App\Models\AssetSubType;
 use App\Support\AdminAuthorization; // admin-password check
+use App\Support\Depreciation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -164,6 +165,17 @@ class AssetModificationController extends Controller
         // The asset's current allocation is carried over to the new assets (unless a new location was typed in).
         $allocation = empty($data['new_location']) ? $parent->currentAllocation : null;
 
+        // Depreciation: each asset's cost is held in layers that keep their own start date and life, so assets that
+        // were registered on different dates keep their own age when they are combined (see App\Support\Depreciation).
+        $toArray = fn ($layer) => [
+            'source_asset_id' => $layer->source_asset_id,
+            'cost' => (float) $layer->cost,
+            'start_date' => $layer->start_date->toDateString(),
+            'useful_life_months' => $layer->useful_life_months,
+        ];
+        $parentLayers = $parent->layers->map($toArray)->all();
+        $componentLayers = $component->layers->map($toArray)->all();
+
         // 1. The removed component goes back into the registry as an asset of its own.
         $removed = null;
         if ($removedPart === 'new') {
@@ -187,6 +199,21 @@ class AssetModificationController extends Controller
                 'cost' => $removedPrice,
                 'origin_asset_id' => $originId, // trace the component back to the asset it came with
             ]);
+
+            // It was part of the asset (or of the part it came with), so its cost is taken out of that part's layers
+            // and keeps their start dates. Its own sub type decides how long it lasts, when that is set.
+            $prefer = $originId === $parent->id ? null : array_merge([$originId], Asset::find($originId)->descendantIds());
+            [$removedLayers, $parentLayers] = Depreciation::slice($parentLayers, $removedPrice, $prefer);
+
+            $ownMonths = $subType?->useful_life_years ? $subType->useful_life_years * 12 : null;
+            foreach ($removedLayers as $layer) {
+                $removed->layers()->create([
+                    'source_asset_id' => $removed->id,
+                    'cost' => $layer['cost'],
+                    'start_date' => $layer['start_date'],
+                    'useful_life_months' => $ownMonths ?? $layer['useful_life_months'],
+                ]);
+            }
         } elseif ($removedPart !== null) {
             // One of the original parts the asset was made from: restore it to the registry at the entered price.
             $removed = Asset::where('id', $removedPart)->where('merged_into_asset_id', $parent->id)->first();
@@ -198,6 +225,19 @@ class AssetModificationController extends Controller
             $removed->merged_into_asset_id = null;
             $removed->cost = $removedPrice;
             $removed->save();
+
+            // Its cost is taken out of the parent's layers (its own first) and its layers are rebuilt from that,
+            // so it keeps its original start date(s) at the price entered.
+            [$removedLayers, $parentLayers] = Depreciation::slice(
+                $parentLayers,
+                $removedPrice,
+                array_merge([$removed->id], $removed->descendantIds())
+            );
+
+            $removed->layers()->delete();
+            foreach ($removedLayers as $layer) {
+                $removed->layers()->create($layer);
+            }
         }
 
         if ($removed && $allocation) {
@@ -225,6 +265,11 @@ class AssetModificationController extends Controller
             'location' => ($data['new_location'] ?? null) ?: $parent->location,
             'cost' => $totalCost,
         ]);
+
+        // The combined asset's layers: what is left of the asset plus the added component, each with its own start date.
+        foreach (array_merge($parentLayers, $componentLayers) as $layer) {
+            $combined->layers()->create($layer);
+        }
 
         if ($allocation) {
             $combined->allocations()->create([

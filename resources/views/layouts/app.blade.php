@@ -24,6 +24,9 @@
                 <a href="{{ route('assets.index') }}" class="nav-item {{ request()->routeIs('assets.*') ? 'active' : '' }}">
                     Asset Registry
                 </a>
+                <a href="{{ route('depreciation.index') }}" class="nav-item {{ request()->routeIs('depreciation.*') ? 'active' : '' }}">
+                    Depreciation
+                </a>
                 <a href="{{ route('asset-modifications.index') }}" class="nav-item {{ request()->routeIs('asset-modifications.*') ? 'active' : '' }}">
                     Asset Modification
                 </a>

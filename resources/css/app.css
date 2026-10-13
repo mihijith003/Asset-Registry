@@ -339,6 +339,18 @@ a:hover {
     border-top: 1px solid var(--border-color);
 }
 
+/* Depreciation report summary strip */
+.summary-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2rem;
+    font-size: 0.875rem;
+}
+
+.summary-row .muted {
+    color: var(--text-muted);
+}
+
 /* Modification form: section headings, hints and the live result preview */
 .form-section-title {
     margin: 0.5rem 0 1rem;

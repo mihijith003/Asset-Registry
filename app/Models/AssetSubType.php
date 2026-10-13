@@ -14,6 +14,7 @@ class AssetSubType extends Model
     protected $fillable = [
         'asset_type_id',
         'sub_type_name',
+        'useful_life_years', // NEW: straight-line useful life (NULL = not depreciated)
     ];
 
     public function assetType()

@@ -10,7 +10,12 @@
     @php
         $asset = $sale->asset;
         $recordedCost = $asset ? (float) $asset->cost : null;
-        $difference = $recordedCost !== null ? (float) $sale->price - $recordedCost : null;
+        // CHANGED: the gain / loss is measured against the net book value on the sale date (cost less depreciation)
+        // $difference = $recordedCost !== null ? (float) $sale->price - $recordedCost : null;
+        $saleDate = $sale->sale_date ? \Illuminate\Support\Carbon::parse($sale->sale_date) : \Illuminate\Support\Carbon::today();
+        $accumulated = $asset ? $asset->accumulatedDepreciation($saleDate) : null;
+        $bookValue = $asset ? round($recordedCost - $accumulated, 2) : null;
+        $difference = $bookValue !== null ? round((float) $sale->price - $bookValue, 2) : null;
     @endphp
 
     <h2>Sale details</h2>
@@ -44,6 +49,8 @@
     <table class="details">
         @if ($recordedCost !== null)
             <tr><th>Recorded cost</th><td class="num">{{ number_format($recordedCost, 2) }}</td></tr>
+            <tr><th>Accumulated depreciation (to sale date)</th><td class="num">{{ number_format($accumulated, 2) }}</td></tr>
+            <tr><th>Net book value</th><td class="num">{{ number_format($bookValue, 2) }}</td></tr>
         @endif
         <tr class="total-row"><th>Sale price</th><td class="num">{{ number_format($sale->price, 2) }}</td></tr>
         @if ($difference !== null)

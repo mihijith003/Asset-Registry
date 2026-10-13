@@ -49,7 +49,15 @@
 
                     <div class="form-group">
                         <label class="form-label">Financial Year</label>
+                        {{-- CHANGED: dropdown instead of free text
                         <input type="text" name="financial_year" value="{{ old('financial_year') }}" class="form-control" placeholder="e.g. 2024/2025" maxlength="9">
+                        --}}
+                        <select name="financial_year" class="form-select">
+                            <option value="">-- Select Financial Year --</option>
+                            @foreach ($financialYears as $year)
+                                <option value="{{ $year }}" {{ old('financial_year', $currentFinancialYear) === $year ? 'selected' : '' }}>{{ $year }}</option>
+                            @endforeach
+                        </select>
                     </div>
 
                     {{-- CHANGED: "Location" input removed - assets are allocated to a branch or an employee
@@ -96,6 +104,9 @@
                         {{-- CHANGED: was "Location"; now shows the current allocation (branch / employee) --}}
                         <th>Allocated To</th>
                         <th class="text-right">Cost</th>
+                        {{-- NEW: straight-line monthly depreciation as of today --}}
+                        <th class="text-right">Accum. Depreciation</th>
+                        <th class="text-right">Net Book Value</th>
                         <th>Registered At</th>
                         {{-- NEW: per-row actions --}}
                         <th class="no-sort" style="text-align: right;">Actions</th>
@@ -146,6 +157,12 @@
                                 @endif
                             </td>
                             <td class="text-right" style="font-weight: 500;" data-order="{{ $asset->cost }}">{{ number_format($asset->cost, 2) }}</td>
+                            @php
+                                $accumulated = $asset->accumulatedDepreciation();
+                                $bookValue = round((float) $asset->cost - $accumulated, 2);
+                            @endphp
+                            <td class="text-right" data-order="{{ $accumulated }}">{{ number_format($accumulated, 2) }}</td>
+                            <td class="text-right" style="font-weight: 500;" data-order="{{ $bookValue }}">{{ number_format($bookValue, 2) }}</td>
                             <td>{{ $asset->created_at ? $asset->created_at->format('Y-m-d') : '-' }}</td>
                             {{-- NEW: opens the Allocate dialog (script at the bottom of this page) --}}
                             <td style="text-align: right;">
