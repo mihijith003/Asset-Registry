@@ -73,6 +73,14 @@ class Asset extends Model
         return $this->belongsTo(AssetType::class, 'asset_type_id');
     }
 
+    /**
+     * NEW: the asset's sub type (used on the printed sale / disposal documents).
+     */
+    public function subType()
+    {
+        return $this->belongsTo(AssetSubType::class, 'asset_sub_type_id');
+    }
+
     public function modifications()
     {
         return $this->hasMany(AssetModification::class);

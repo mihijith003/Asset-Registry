@@ -57,7 +57,9 @@ class AssetSaleController extends Controller
                 ->withErrors(['admin_password' => 'Incorrect admin password. The sale was not recorded.']);
         }
 
-        AssetSale::create([
+        // CHANGED: keep the created record so we can link to its printable voucher below.
+        // AssetSale::create([
+        $sale = AssetSale::create([
             'sales_ID' => $validated['sale_id'],
             'asset_id' => $validated['asset_id'],
             'price' => $validated['price'],
@@ -68,7 +70,21 @@ class AssetSaleController extends Controller
             'sale_date' => now()->toDateString(),
         ]);
 
-        return redirect()->route('asset-sales.index')->with('success', 'Asset sale recorded successfully.');
+        // CHANGED: also pass the voucher link so the page can offer "Print document" straight away.
+        // return redirect()->route('asset-sales.index')->with('success', 'Asset sale recorded successfully.');
+        return redirect()->route('asset-sales.index')
+            ->with('success', 'Asset sale recorded successfully.')
+            ->with('print_url', route('asset-sales.print', $sale));
+    }
+
+    /**
+     * NEW: printable sale voucher for one sale.
+     */
+    public function print(AssetSale $sale): View
+    {
+        $sale->load(['asset.assetType', 'asset.subType']);
+
+        return view('asset-sales.print', compact('sale'));
     }
 }
 

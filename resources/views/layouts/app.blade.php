@@ -33,9 +33,6 @@
                 <a href="{{ route('asset-disposals.index') }}" class="nav-item {{ request()->routeIs('asset-disposals.*') ? 'active' : '' }}">
                     Asset Disposal
                 </a>
-                <a href="{{ route('activity-logs.index') }}" class="nav-item {{ request()->routeIs('activity-logs.*') ? 'active' : '' }}">
-                    Activity Logs
-                </a>
             </nav>
 
             <div class="sidebar-footer">

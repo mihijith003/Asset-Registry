@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetDisposalController;
 use App\Http\Controllers\AssetModificationController;
@@ -55,6 +54,8 @@ Route::middleware(['auth', 'permission:sell assets'])->group(function () {
     // CHANGED: throttled (10 attempts/minute) because this endpoint now checks an admin password.
     // Route::post('/asset-sales', [AssetSaleController::class, 'store'])->name('asset-sales.store');
     Route::post('/asset-sales', [AssetSaleController::class, 'store'])->middleware('throttle:10,1')->name('asset-sales.store');
+    // NEW: printable sale voucher (same 'sell assets' permission as the rest of the sales pages)
+    Route::get('/asset-sales/{sale}/print', [AssetSaleController::class, 'print'])->name('asset-sales.print');
 });
 
 Route::middleware(['auth', 'permission:dispose assets'])->group(function () {
@@ -62,10 +63,8 @@ Route::middleware(['auth', 'permission:dispose assets'])->group(function () {
     // CHANGED: throttled (10 attempts/minute) because this endpoint now checks an admin password.
     // Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->name('asset-disposals.store');
     Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->middleware('throttle:10,1')->name('asset-disposals.store');
-});
-
-Route::middleware('auth')->group(function () {
-    Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+    // NEW: printable disposal record (same 'dispose assets' permission as the rest of the disposal pages)
+    Route::get('/asset-disposals/{disposal}/print', [AssetDisposalController::class, 'print'])->name('asset-disposals.print');
 });
 
 require __DIR__.'/auth.php';

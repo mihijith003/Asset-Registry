@@ -30,10 +30,5 @@
             <h3>Asset Disposal</h3>
             <p style="color: var(--text-muted); font-size: 0.875rem;">Track scrapped assets</p>
         </a>
-
-        <a href="{{ route('activity-logs.index') }}" class="stat-card">
-            <h3>Activity Logs</h3>
-            <p style="color: var(--text-muted); font-size: 0.875rem;">Audit actions & system events</p>
-        </a>
     </div>
 </x-app-layout>

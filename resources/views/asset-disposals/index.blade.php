@@ -1,6 +1,14 @@
 <x-app-layout>
     <x-slot name="header">Asset Disposal</x-slot>
 
+    {{-- NEW: shown right after a disposal is recorded, linking to its printable record --}}
+    @if (session('print_url'))
+        <div class="alert alert-success" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <span>The disposal record is ready to print.</span>
+            <a href="{{ session('print_url') }}" target="_blank" rel="noopener" class="btn btn-primary">Print document</a>
+        </div>
+    @endif
+
     <!-- Asset Disposal Form Card -->
     <div class="card">
         <div class="card-header">
@@ -112,6 +120,8 @@
                         <th>Disposal Date</th>
                         {{-- NEW: shows the admin who authorized the disposal --}}
                         <th>Authorized By</th>
+                        {{-- NEW: print action column --}}
+                        <th style="text-align: right;">Document</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -138,13 +148,17 @@
                             <td>
                                 {{ $disposal->authorized_by ?? '-' }}
                             </td>
+                            {{-- NEW: opens the printable disposal record in a new tab --}}
+                            <td style="text-align: right;">
+                                <a href="{{ route('asset-disposals.print', $disposal) }}" target="_blank" rel="noopener" class="btn btn-secondary">Print</a>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            {{-- CHANGED: colspan 4 -> 5 for the new "Authorized By" column
+                            {{-- CHANGED: colspan 4 -> 5 for the new "Authorized By" column, then 5 -> 6 for "Document"
                             <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
                             --}}
-                            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
                                 No disposals recorded yet.
                             </td>
                         </tr>

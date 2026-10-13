@@ -21,7 +21,7 @@ class AssetDisposalController extends Controller
             ->orderByDesc('id')
             ->paginate(10);
 
-        // CHANGED: assets that were merged into a combined asset are no longer disposable.
+        // Assets that were merged into a combined asset are no longer disposable.
         // $assets = Asset::orderBy('asset_code')->get();
         $assets = Asset::whereNull('merged_into_asset_id')->orderBy('asset_code')->get();
 
@@ -37,15 +37,17 @@ class AssetDisposalController extends Controller
     {
         $validated = $request->validate([
             'disposal_id' => ['required', 'string', 'max:50', 'unique:asset_disposals,disposal_id'],
+            
             // CHANGED: also reject assets that were merged into a combined asset.
-            // 'asset_id' => ['required', 'exists:assets,id'],
+            
             'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')],
             'method' => ['required', 'string', 'max:100'],
-            // NEW: an Admin password must be supplied (via the popup on "Record Disposal").
+
+            // An Admin password must be supplied (via the popup on "Record Disposal").
             'admin_password' => ['required', 'string'],
         ]);
 
-        // NEW: verify the password against the Admin users. If it doesn't match,
+        // Verify the password against the Admin users. If it doesn't match,
         // nothing is saved and the user is sent back with their input preserved.
         $admin = AdminAuthorization::findAdminByPassword($validated['admin_password']);
 
@@ -55,16 +57,32 @@ class AssetDisposalController extends Controller
                 ->withErrors(['admin_password' => 'Incorrect admin password. The disposal was not recorded.']);
         }
 
-        AssetDisposal::create([
+        // Keep the created record so we can link to its printable document below.
+      
+        $disposal = AssetDisposal::create([
             'disposal_id' => $validated['disposal_id'],
             'asset_id' => $validated['asset_id'],
             'method' => $validated['method'],
             'disposal_date' => now()->toDateString(),
-            // NEW: record the name of the admin whose password authorized the disposal.
+            // Record the name of the admin whose password authorized the disposal.
             'authorized_by' => $admin->name,
         ]);
 
-        return redirect()->route('asset-disposals.index')->with('success', 'Asset disposal recorded successfully.');
+        // Also pass the document link so the page can offer "Print document" straight away.
+        // return redirect()->route('asset-disposals.index')->with('success', 'Asset disposal recorded successfully.');
+        return redirect()->route('asset-disposals.index')
+            ->with('success', 'Asset disposal recorded successfully.')
+            ->with('print_url', route('asset-disposals.print', $disposal));
+    }
+
+    /**
+     * NEW: printable disposal record for one disposal.
+     */
+    public function print(AssetDisposal $disposal): View
+    {
+        $disposal->load(['asset.assetType', 'asset.subType']);
+
+        return view('asset-disposals.print', compact('disposal'));
     }
 }
 

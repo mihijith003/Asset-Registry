@@ -1,6 +1,14 @@
 <x-app-layout>
     <x-slot name="header">Asset Sale</x-slot>
 
+    {{-- NEW: shown right after a sale is recorded, linking to its printable voucher --}}
+    @if (session('print_url'))
+        <div class="alert alert-success" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <span>The sale voucher is ready to print.</span>
+            <a href="{{ session('print_url') }}" target="_blank" rel="noopener" class="btn btn-primary">Print document</a>
+        </div>
+    @endif
+
     <!-- Asset Sale Form Card -->
     <div class="card">
         <div class="card-header">
@@ -132,6 +140,8 @@
                         <th style="text-align: right;">Price</th>
                         <th>Authorized By</th>
                         <th>Sale Date</th>
+                        {{-- NEW: print action column --}}
+                        <th style="text-align: right;">Document</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -157,10 +167,17 @@
                             <td style="font-size: 0.875rem; color: var(--text-muted);">
                                 {{ $sale->sale_date ?? '-' }}
                             </td>
+                            {{-- NEW: opens the printable voucher in a new tab --}}
+                            <td style="text-align: right;">
+                                <a href="{{ route('asset-sales.print', $sale) }}" target="_blank" rel="noopener" class="btn btn-secondary">Print</a>
+                            </td>
                         </tr>
                     @empty
                         <tr>
+                            {{-- CHANGED: colspan 5 -> 6 for the new "Document" column
                             <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                            --}}
+                            <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
                                 No sales recorded yet.
                             </td>
                         </tr>
