@@ -115,12 +115,13 @@
                 <p>History of assets that have been disposed or retired.</p>
             </div>
             <span style="font-size: 0.875rem; color: var(--text-muted);">
-                Total: {{ $disposals->total() }}
+                Total: {{ $disposals->count() }}
             </span>
         </div>
 
         <div class="table-responsive">
-            <table class="table">
+            {{-- CHANGED: DataTables (search / sort / paging) is applied to this table by resources/js/app.js --}}
+            <table class="table" data-datatable data-empty="No disposals recorded yet.">
                 <thead>
                     <tr>
                         <th>Disposal ID</th>
@@ -131,11 +132,11 @@
                         <th>Authorized By</th>
                         <th>Comments</th>
                         {{-- NEW: print action column --}}
-                        <th style="text-align: right;">Document</th>
+                        <th class="no-sort" style="text-align: right;">Document</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($disposals as $disposal)
+                    @foreach ($disposals as $disposal)
                         <tr>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
                                 {{ $disposal->disposal_id }}
@@ -164,24 +165,9 @@
                                 <a href="{{ route('asset-disposals.print', $disposal) }}" target="_blank" rel="noopener" class="btn btn-secondary">Print</a>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            {{-- CHANGED: colspan 4 -> 5 for the new "Authorized By" column, then 5 -> 6 for "Document"
-                            <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                            --}}
-                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                                No disposals recorded yet.
-                            </td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
-
-        @if ($disposals->hasPages())
-            <div class="table-pagination">
-                {{ $disposals->links() }}
-            </div>
-        @endif
     </div>
 </x-app-layout>

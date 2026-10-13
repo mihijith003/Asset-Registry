@@ -31,7 +31,7 @@ class AssetModificationController extends Controller
 
         $modifications = AssetModification::with(['asset', 'resultAsset']) // CHANGED: also load the combined asset
             ->orderByDesc('id')
-            ->paginate(10);
+            ->get(); // CHANGED: DataTables does the paging/search/sort in the browser
 
         return view('asset-modifications.index', ['modifications' => $modifications] + $this->formData());
     }
@@ -182,6 +182,17 @@ class AssetModificationController extends Controller
             'location' => ($data['new_location'] ?? null) ?: $parent->location,
             'cost' => $totalCost,
         ]);
+
+        // NEW: the combined asset stays where the parent asset was allocated, unless a new location
+        // was typed in the form (that text is then shown as its location instead).
+        $parentAllocation = $parent->currentAllocation;
+        if ($parentAllocation && empty($data['new_location'])) {
+            $combined->allocations()->create([
+                'allocation_type' => $parentAllocation->allocation_type,
+                'allocated_to' => $parentAllocation->allocated_to,
+                'allocated_by' => $data['authorized_by'],
+            ]);
+        }
 
         // Remove the two originals from the registry by pointing them at the new asset.
         $parent->update(['merged_into_asset_id' => $combined->id]);

@@ -19,7 +19,7 @@ class AssetSaleController extends Controller
     {
         $sales = AssetSale::with('asset')
             ->orderByDesc('id')
-            ->paginate(10);
+            ->get(); // CHANGED: DataTables does the paging/search/sort in the browser
 
         // CHANGED: assets that were merged into a combined asset are no longer sellable.
         // $assets = Asset::orderBy('asset_code')->get();

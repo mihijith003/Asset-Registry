@@ -19,7 +19,7 @@ class AssetDisposalController extends Controller
     {
         $disposals = AssetDisposal::with('asset')
             ->orderByDesc('id')
-            ->paginate(10);
+            ->get(); // CHANGED: DataTables does the paging/search/sort in the browser
 
         // Assets that were merged into a combined asset are no longer disposable.
         // $assets = Asset::orderBy('asset_code')->get();

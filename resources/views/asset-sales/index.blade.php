@@ -136,12 +136,13 @@
                 <p>History of assets that have been sold.</p>
             </div>
             <span style="font-size: 0.875rem; color: var(--text-muted);">
-                Total: {{ $sales->total() }}
+                Total: {{ $sales->count() }}
             </span>
         </div>
 
         <div class="table-responsive">
-            <table class="table">
+            {{-- CHANGED: DataTables (search / sort / paging) is applied to this table by resources/js/app.js --}}
+            <table class="table" data-datatable data-empty="No sales recorded yet.">
                 <thead>
                     <tr>
                         <th>Sale ID</th>
@@ -151,11 +152,11 @@
                         <th>Sale Date</th>
                         <th>Comments</th>
                         {{-- NEW: print action column --}}
-                        <th style="text-align: right;">Document</th>
+                        <th class="no-sort" style="text-align: right;">Document</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($sales as $sale)
+                    @foreach ($sales as $sale)
                         <tr>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
                                 {{ $sale->sales_ID ?? $sale->sale_id }}
@@ -168,7 +169,7 @@
                                     {{ $sale->asset->brand_name ?? '' }} {{ $sale->asset->model ?? '' }}
                                 </div>
                             </td>
-                            <td style="text-align: right; font-weight: 500;">
+                            <td style="text-align: right; font-weight: 500;" data-order="{{ $sale->price }}">
                                 {{ number_format($sale->price, 2) }}
                             </td>
                             <td>
@@ -183,24 +184,9 @@
                                 <a href="{{ route('asset-sales.print', $sale) }}" target="_blank" rel="noopener" class="btn btn-secondary">Print</a>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            {{-- CHANGED: colspan 5 -> 6 for the new "Document" column
-                            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                            --}}
-                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                                No sales recorded yet.
-                            </td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
-
-        @if ($sales->hasPages())
-            <div class="table-pagination">
-                {{ $sales->links() }}
-            </div>
-        @endif
     </div>
 </x-app-layout>

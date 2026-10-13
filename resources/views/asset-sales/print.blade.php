@@ -34,7 +34,7 @@
             <tr><th>Type</th><td>{{ $asset->assetType->type_name ?? '-' }}{{ $asset->subType ? ' / ' . $asset->subType->sub_type_name : '' }}</td></tr>
             <tr><th>Brand &amp; model</th><td>{{ trim(($asset->brand_name ?? '') . ' ' . ($asset->model ?? '')) ?: '-' }}</td></tr>
             <tr><th>Financial year</th><td>{{ $asset->financial_year ?? '-' }}</td></tr>
-            <tr><th>Location</th><td>{{ $asset->location ?? '-' }}</td></tr>
+            <tr><th>Location</th><td>{{ $asset->location_label ?? '-' }}</td></tr>
         @else
             <tr><th>Asset</th><td>Asset #{{ $sale->asset_id }} (no longer in the registry)</td></tr>
         @endif
