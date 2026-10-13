@@ -90,13 +90,11 @@ a:hover {
     text-decoration: none;
 }
 
-.sidebar-footer {
-    padding: 1rem 1.5rem;
-    border-top: 1px solid var(--border-sidebar);
-    font-size: 0.875rem;
+.header-user {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 1.25rem;
+    font-size: 0.875rem;
 }
 
 .logout-btn {
