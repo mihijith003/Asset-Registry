@@ -41,7 +41,7 @@ class AssetDisposalController extends Controller
             // CHANGED: also reject assets that were merged into a combined asset.
             
             'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')],
-            'method' => ['required', 'string', 'max:100'],
+            'method' => ['required', 'string', 'in:Donated,Scrapped,Lost'],
             'comments' => ['nullable', 'string', 'max:1000'], // NEW: optional notes
 
             // An Admin password must be supplied (via the popup on "Record Disposal").
@@ -58,6 +58,11 @@ class AssetDisposalController extends Controller
                 ->withErrors(['admin_password' => 'Incorrect admin password. The disposal was not recorded.']);
         }
 
+        //Logic for Lost items
+        $validated['approval_status'] = ($validated['method'] === 'Lost')? 'pending' : 'approved';
+
+        unset($validated['admin_password']);
+
         // Keep the created record so we can link to its printable document below.
       
         $disposal = AssetDisposal::create([
@@ -68,12 +73,13 @@ class AssetDisposalController extends Controller
             // Record the name of the admin whose password authorized the disposal.
             'authorized_by' => $admin->name,
             'comments' => $validated['comments'] ?? null,
+            'approval_status' => $validated['approval_status'],
         ]);
 
         // Also pass the document link so the page can offer "Print document" straight away.
         // return redirect()->route('asset-disposals.index')->with('success', 'Asset disposal recorded successfully.');
         return redirect()->route('asset-disposals.index')
-            ->with('success', 'Asset disposal recorded successfully.')
+            ->with('success','Disposal recorded. Lost items require Admin approval.')
             ->with('print_url', route('asset-disposals.print', $disposal));
     }
 
@@ -86,5 +92,28 @@ class AssetDisposalController extends Controller
 
         return view('asset-disposals.print', compact('disposal'));
     }
-}
 
+    //Approve pending lost item claim
+    public function approve($id){
+        $disposal = \App\Models\AssetDisposal::findOrFail($id);
+        $disposal->update(['approval_status' => 'approved']);
+
+        //Soft delete the actual asset from the database
+        $asset = \App\Models\Asset::find($disposal->asset_id);
+        if($asset){
+            $asset->delete();
+        }
+
+        return back()->with('success', 'Lost item approved and removed from database.');
+    }
+
+    //Reject pending lost item claim
+    public function reject($id){
+        $disposal = \App\Models\AssetDisposal::findOrFail($id);
+
+        //Deleting thr disposal record restores the item to the active assets Registry
+        $disposal->delete();
+
+        return back()->with('success', 'Lost item rejected and restored to the active assets registry.');
+}
+}

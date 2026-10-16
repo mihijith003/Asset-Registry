@@ -69,14 +69,12 @@
                         <label for="method" class="form-label">
                             Method <span class="required">*</span>
                         </label>
-                        <input type="text" 
-                               id="method" 
-                               name="method" 
-                               value="{{ old('method') }}"
-                               placeholder="e.g. Recycled, Scrapped, Donated"
-                               maxlength="100"
-                               required
-                               class="form-control">
+                        <select name="method" id="method" class="form-control" required>
+                            <option value="">-- Select Disposal Method --</option>
+                            <option value="Donated" {{ old('method') == 'Donated' ? 'selected' : '' }}>Donated</option>
+                            <option value="Scrapped" {{ old('method') == 'Scrapped' ? 'selected' : '' }}>Scrapped</option>
+                            <option value="Lost" {{ old('method') == 'Lost' ? 'selected' : '' }}>Lost / Missing</option>
+                        </select>
                         @error('method')
                             <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
                         @enderror
@@ -106,6 +104,73 @@
             <x-admin-password-modal form="asset-disposal-form" />
         </div>
     </div>
+
+    <!-- Pending Approvals Table -->
+<div class="card" style="margin-bottom: 2rem;">
+    <div class="card-header">
+        <div>
+            <h3>Pending Approvals</h3>
+            <p>Lost items requiring admin authorization before removal from the registry.</p>
+        </div>
+        <span style="font-size: 0.875rem; color: var(--text-muted);">
+            Action Required
+        </span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Disposal ID</th>
+                    <th>Asset Code</th>
+                    <th>Reported Date</th>
+                    <th class="no-sort" style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse(\App\Models\AssetDisposal::where('approval_status', 'pending')->get() as $pending)
+                    <tr>
+                        <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
+                            {{ $pending->disposal_id }}
+                        </td>
+                        <td>
+                            <div>
+                                {{ $pending->asset->asset_code ?? 'Asset #' . $pending->asset_id }}
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">
+                                {{ $pending->asset->brand_name ?? '' }} {{ $pending->asset->model ?? '' }}
+                            </div>
+                        </td>
+                        <td style="font-size: 0.875rem; color: var(--text-muted);">
+                            {{ $pending->disposal_date ?? '-' }}
+                        </td>
+                        <td style="text-align: right;">
+                            <form action="{{ route('asset-disposals.approve', $pending->id) }}" method="POST" style="display:inline;">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" class="btn btn-sm" style="background-color: var(--primary); color: white; border: none; padding: 0.25rem 0.75rem; border-radius: 4px;">Approve</button>
+                            </form>
+
+                            <form action="{{ route('asset-disposals.reject', $pending->id) }}" method="POST" style="display:inline;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-sm" style="background-color: #dc3545; color: white; border: none; padding: 0.25rem 0.75rem; border-radius: 4px; margin-left: 0.5rem;">Reject</button>
+                            </form>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem 0;">
+                            No pending approvals at this time.
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
 
     <!-- Disposals Table -->
     <div class="card">

@@ -75,6 +75,12 @@ Route::middleware(['auth', 'permission:dispose assets'])->group(function () {
     Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->middleware('throttle:10,1')->name('asset-disposals.store');
     // NEW: printable disposal record (same 'dispose assets' permission as the rest of the disposal pages)
     Route::get('/asset-disposals/{disposal}/print', [AssetDisposalController::class, 'print'])->name('asset-disposals.print');
+    // NEW: approve a pending lost item claim
+    Route::patch('/asset-disposals/{id}/approve', [AssetDisposalController::class, 'approve'])->name('asset-disposals.approve');
+    // NEW: reject a pending lost item claim
+    Route::delete('/asset-disposals/{id}/reject', [AssetDisposalController::class, 'reject'])->name('asset-disposals.reject');
 });
+
+    
 
 require __DIR__.'/auth.php';
