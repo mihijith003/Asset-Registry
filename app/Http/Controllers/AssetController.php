@@ -8,9 +8,9 @@ use App\Models\AssetType;
 use App\Support\Depreciation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
 class AssetController extends Controller
 {
@@ -50,18 +50,23 @@ class AssetController extends Controller
             'cost' => ['required', 'numeric', 'min:0'],
         ]);
 
-        if (empty($validated['asset_code'])) {
-            $validated['asset_code'] = 'AST-' . date('Y') . '-' . strtoupper(Str::random(5));
-        }
+        $asset = DB::transaction(function () use ($validated) {
+            $validated['asset_code'] = Asset::generateCode(
+                (int) $validated['asset_type_id'],
+                (int) $validated['asset_sub_type_id']
+            );
 
-        $asset = Asset::create($validated);
-        $asset->addInitialLayer(); 
+            $asset = Asset::create($validated);
+            $asset->addInitialLayer();
 
-        //Record activity log
+            return $asset;
+        });
+
+        // Record activity log
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action' => 'Asset Registered',
-            'description' =>  "Asset {$asset->asset_code} (" . trim("{$asset->brand_name} {$asset->model}") . ") registered." . number_format($asset->cost,2),
+            'description' =>  "Asset {$asset->asset_code} (" . trim("{$asset->brand_name} {$asset->model}") . ") registered." . number_format($asset->cost, 2),
             'status' => 1,
         ]);
 

@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Asset extends Model
@@ -27,15 +26,21 @@ class Asset extends Model
     ];
 
     /**
-     * NEW: generate a unique asset code (same AST-YYYY-XXXXX format the registry uses).
+     * Generate a sequential asset code for a type and subtype combination: <type_code>-<sub_type_code>-<nnn>.
      */
-    public static function generateCode(): string
+    public static function generateCode(int $assetTypeId, int $assetSubTypeId): string
     {
-        do {
-            $code = 'AST-' . date('Y') . '-' . strtoupper(Str::random(5));
-        } while (static::where('asset_code', $code)->exists());
+        $type = AssetType::findOrFail($assetTypeId);
+        $subType = AssetSubType::findOrFail($assetSubTypeId);
 
-        return $code;
+        $count = static::withTrashed()
+            ->where('asset_type_id', $assetTypeId)
+            ->where('asset_sub_type_id', $assetSubTypeId)
+            ->count();
+
+        $number = str_pad((string) ($count + 1), 3, '0', STR_PAD_LEFT);
+
+        return "{$type->type_code}-{$subType->sub_type_code}-{$number}";
     }
 
     /**
@@ -61,15 +66,6 @@ class Asset extends Model
     public function mergedInto()
     {
         return $this->belongsTo(Asset::class, 'merged_into_asset_id');
-    }
-
-    protected static function booted()
-    {
-        static::creating(function ($asset) {
-            if (empty($asset->asset_code)) {
-                $asset->asset_code = 'AST-' . strtoupper(Str::random(6));
-            }
-        });
     }
 
     public function assetType()
