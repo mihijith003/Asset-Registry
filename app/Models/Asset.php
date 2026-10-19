@@ -13,6 +13,7 @@ class Asset extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'name',
         'asset_code',
         'asset_type_id',
         'asset_sub_type_id',
@@ -82,6 +83,11 @@ class Asset extends Model
     public function subType()
     {
         return $this->belongsTo(AssetSubType::class, 'asset_sub_type_id');
+    }
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
     }
 
     /**

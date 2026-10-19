@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Asset;
 use App\Models\AssetType;
 use App\Support\Depreciation;
@@ -9,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Auth;
 
 class AssetController extends Controller
 {
@@ -17,23 +19,17 @@ class AssetController extends Controller
      */
     public function index(): View
     {
-        // CHANGED: uses the active() scope (also hides assets merged into a combined asset) and
-        // loads "components" so combined assets can show what they were made from.
-        // $assets = Asset::with('assetType')
-        //     ->doesntHave('sale')
-        //     ->doesntHave('disposal')
-        //     ->orderByDesc('id')
-        //     ->paginate(10);
+        
         // NEW: allocations (newest first = current + history); originAsset / removalModification trace removed components
         $assets = Asset::with(['assetType', 'components', 'allocations', 'originAsset', 'removalModification.asset', 'layers'])
             ->active()
             ->orderByDesc('id')
-            ->get(); // CHANGED: DataTables does the paging/search/sort in the browser
+            ->get(); 
 
         $assetTypes = AssetType::orderBy('type_name')->get();
         $assetSubTypes = \App\Models\AssetSubType::all();
 
-        // NEW: dropdown of financial years, and the figures for the depreciation columns
+        // Dropdown of financial years, and the figures for the depreciation columns
         $financialYears = Depreciation::financialYearOptions();
         $currentFinancialYear = Depreciation::label(Depreciation::financialYearOf());
 
@@ -50,12 +46,7 @@ class AssetController extends Controller
             'asset_sub_type_id' => ['required', 'exists:asset_sub_types,id'],
             'brand_name' => ['nullable', 'string', 'max:100'],
             'model' => ['nullable', 'string', 'max:100'],
-            // CHANGED: a dropdown of financial years now (was free text)
-            // 'financial_year' => ['nullable', 'string', 'max:9'],
             'financial_year' => ['nullable', 'string', 'in:' . implode(',', Depreciation::financialYearOptions())],
-            // CHANGED: location is no longer entered at registration - assets are allocated afterwards
-            // (branch or employee) from the registry table.
-            // 'location' => ['nullable', 'string', 'max:150'],
             'cost' => ['required', 'numeric', 'min:0'],
         ]);
 
@@ -64,7 +55,15 @@ class AssetController extends Controller
         }
 
         $asset = Asset::create($validated);
-        $asset->addInitialLayer(); // NEW: depreciation starts on the registration date
+        $asset->addInitialLayer(); 
+
+        //Record activity log
+        ActivityLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'Asset Registered',
+            'description' =>  "Asset {$asset->asset_code} (" . trim("{$asset->brand_name} {$asset->model}") . ") registered." . number_format($asset->cost,2),
+            'status' => 1,
+        ]);
 
         return redirect()->route('assets.index')->with('success', 'Asset registered successfully.');
     }

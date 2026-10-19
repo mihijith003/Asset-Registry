@@ -12,7 +12,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
-// NEW: straight-line monthly depreciation report (per financial year) and the useful-life settings.
+// Straight-line monthly depreciation report (per financial year) and the useful-life settings.
 class DepreciationController extends Controller
 {
     public function index(Request $request): View

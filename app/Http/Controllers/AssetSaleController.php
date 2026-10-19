@@ -19,10 +19,8 @@ class AssetSaleController extends Controller
     {
         $sales = AssetSale::with('asset')
             ->orderByDesc('id')
-            ->get(); // CHANGED: DataTables does the paging/search/sort in the browser
-
-        // CHANGED: assets that were merged into a combined asset are no longer sellable.
-        // $assets = Asset::orderBy('asset_code')->get();
+            ->get(); 
+       
         $assets = Asset::whereNull('merged_into_asset_id')->orderBy('asset_code')->get();
 
         return view('asset-sales.index', compact('sales', 'assets'));
@@ -37,19 +35,13 @@ class AssetSaleController extends Controller
     {
         $validated = $request->validate([
             'sale_id' => ['required', 'string', 'max:50', 'unique:asset_sales,sales_ID'],
-            // CHANGED: also reject assets that were merged into a combined asset.
-            // 'asset_id' => ['required', 'exists:assets,id'],
             'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')],
             'price' => ['required', 'numeric', 'min:0'],
-            'comments' => ['nullable', 'string', 'max:1000'], // NEW: optional notes
-            // CHANGED: the free-text "authorized_by" input was removed from the form.
-            // 'authorized_by' => ['nullable', 'string', 'max:100'],
-            // NEW: an Admin password must now be supplied (via the popup on "Record Sale").
+            'comments' => ['nullable', 'string', 'max:1000'], 
             'admin_password' => ['required', 'string'],
         ]);
 
-        // NEW: verify the password against the Admin users. If it doesn't match,
-        // nothing is saved and the user is sent back with their input preserved.
+        // Verify the password against the Admin users
         $admin = AdminAuthorization::findAdminByPassword($validated['admin_password']);
 
         if (! $admin) {
@@ -58,22 +50,17 @@ class AssetSaleController extends Controller
                 ->withErrors(['admin_password' => 'Incorrect admin password. The sale was not recorded.']);
         }
 
-        // CHANGED: keep the created record so we can link to its printable voucher below.
-        // AssetSale::create([
+        
         $sale = AssetSale::create([
             'sales_ID' => $validated['sale_id'],
             'asset_id' => $validated['asset_id'],
             'price' => $validated['price'],
-            // CHANGED: previously taken from the typed-in field.
-            // 'authorized_BY' => $validated['authorized_by'] ?? null,
-            // NEW: record the name of the admin whose password authorized the sale.
             'authorized_BY' => $admin->name,
             'sale_date' => now()->toDateString(),
             'comments' => $validated['comments'] ?? null,
         ]);
 
-        // CHANGED: also pass the voucher link so the page can offer "Print document" straight away.
-        // return redirect()->route('asset-sales.index')->with('success', 'Asset sale recorded successfully.');
+        
         return redirect()->route('asset-sales.index')
             ->with('success', 'Asset sale recorded successfully.')
             ->with('print_url', route('asset-sales.print', $sale));

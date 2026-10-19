@@ -8,6 +8,10 @@ use App\Http\Controllers\AssetSaleController;
 use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BrandController;
+use App\Http\Controllers\AssetTypeController;
+use App\Http\Controllers\AssetSubTypeController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -19,6 +23,7 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
@@ -45,7 +50,7 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::post('/assets/{asset}/allocations', [AssetAllocationController::class, 'store'])->name('assets.allocate');
 });
 
-// NEW: depreciation report + useful-life settings (same permission as the registry)
+//Depreciation report + useful-life settings (same permission as the registry)
 Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/depreciation', [DepreciationController::class, 'index'])->name('depreciation.index');
     Route::post('/depreciation/settings', [DepreciationController::class, 'updateSettings'])->middleware('throttle:10,1')->name('depreciation.settings');
@@ -53,7 +58,7 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {
     Route::get('/asset-modifications', [AssetModificationController::class, 'index'])->name('asset-modifications.index');
-    // CHANGED: throttled (10 attempts/minute) because this endpoint now checks an admin password.
+    
     // Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->name('asset-modifications.store');
     Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->middleware('throttle:10,1')->name('asset-modifications.store');
 });
@@ -61,22 +66,26 @@ Route::middleware(['auth', 'permission:modify assets'])->group(function () {
 // ONLY Admin can access these
 Route::middleware(['auth', 'permission:sell assets'])->group(function () {
     Route::get('/asset-sales', [AssetSaleController::class, 'index'])->name('asset-sales.index');
-    // CHANGED: throttled (10 attempts/minute) because this endpoint now checks an admin password.
+    
     // Route::post('/asset-sales', [AssetSaleController::class, 'store'])->name('asset-sales.store');
     Route::post('/asset-sales', [AssetSaleController::class, 'store'])->middleware('throttle:10,1')->name('asset-sales.store');
+
     // NEW: printable sale voucher (same 'sell assets' permission as the rest of the sales pages)
     Route::get('/asset-sales/{sale}/print', [AssetSaleController::class, 'print'])->name('asset-sales.print');
 });
 
 Route::middleware(['auth', 'permission:dispose assets'])->group(function () {
     Route::get('/asset-disposals', [AssetDisposalController::class, 'index'])->name('asset-disposals.index');
-    // CHANGED: throttled (10 attempts/minute) because this endpoint now checks an admin password.
+    
     // Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->name('asset-disposals.store');
     Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->middleware('throttle:10,1')->name('asset-disposals.store');
+
     // NEW: printable disposal record (same 'dispose assets' permission as the rest of the disposal pages)
     Route::get('/asset-disposals/{disposal}/print', [AssetDisposalController::class, 'print'])->name('asset-disposals.print');
+
     // NEW: approve a pending lost item claim
     Route::patch('/asset-disposals/{id}/approve', [AssetDisposalController::class, 'approve'])->name('asset-disposals.approve');
+
     // NEW: reject a pending lost item claim
     Route::delete('/asset-disposals/{id}/reject', [AssetDisposalController::class, 'reject'])->name('asset-disposals.reject');
 });

@@ -8,7 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-// NEW: allocate a registered asset to a branch or to an employee.
+// Allocate a registered asset to a branch or to an employee.
 class AssetAllocationController extends Controller
 {
     public function store(Request $request, int $asset): RedirectResponse

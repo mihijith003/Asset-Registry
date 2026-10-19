@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use App\Models\ActivityLog;
 
 class AssetModificationController extends Controller
 {
@@ -90,6 +91,7 @@ class AssetModificationController extends Controller
             'removed_brand' => ['nullable', 'string', 'max:100'],
             'removed_model' => ['nullable', 'string', 'max:100'],
             'removed_asset_sub_type_id' => ['nullable', 'exists:asset_sub_types,id'],
+
             // For a typed-in component: the asset (or one of its original parts) it originally came with.
             'removed_origin_asset_id' => ['nullable', 'exists:assets,id'],
 
@@ -133,6 +135,13 @@ class AssetModificationController extends Controller
             // The admin password must never be flashed back into the session/form.
             return back()->withInput($request->except('admin_password'))->withErrors(['asset_id' => $error]);
         }
+
+        \App\Models\ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'Asset Modified',
+            'description' => "Modification recorded for Parent Asset ID: " . $validated['asset_id'],
+            'status' => 1,
+        ]);
 
         return redirect()->route('asset-modifications.index')->with(
             'success',
