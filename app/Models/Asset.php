@@ -72,6 +72,31 @@ class Asset extends Model
     }
 
     /**
+     * Whether this asset's combination was undone by a later modification (via the revive path).
+     */
+    public function isCombinationUndone(): bool
+    {
+        if ($this->components->isEmpty()) {
+            return false;
+        }
+
+        $producedAssetIds = $this->modifications->pluck('result_asset_id')->filter()->all();
+        if (empty($producedAssetIds)) {
+            return false;
+        }
+
+        return $this->components->contains(fn ($component) => in_array($component->id, $producedAssetIds, true));
+    }
+
+    /**
+     * Whether this asset is currently an active combined asset.
+     */
+    public function isCurrentlyCombined(): bool
+    {
+        return $this->components->isNotEmpty() && ! $this->isCombinationUndone();
+    }
+
+    /**
      * NEW: the combined asset this asset was merged into (null if it has not been merged).
      */
     public function mergedInto()

@@ -173,13 +173,19 @@
                                     </div>
                                 @endif
                                 @if ($asset->components->isNotEmpty())
-                                    <div style="margin-top: 0.25rem;">
-                                        <span class="badge badge-secondary">Combined asset</span>
-                                    </div>
-                                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
-                                        Combination of {{ $asset->components->count() }} previous assets:
-                                        {{ $asset->components->map(fn ($c) => $c->asset_code . ' (' . trim(($c->brand?->name ?? $c->brand_name) . ' ' . $c->model) . ')')->join(' + ') }}
-                                    </div>
+                                    @if ($asset->isCombinationUndone())
+                                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                            Previously combined &mdash; see <a href="{{ route('asset-modifications.index') }}">modification history</a>
+                                        </div>
+                                    @else
+                                        <div style="margin-top: 0.25rem;">
+                                            <span class="badge badge-secondary">Combined asset</span>
+                                        </div>
+                                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                            Combination of {{ $asset->components->count() }} previous assets:
+                                            {{ $asset->components->map(fn ($c) => $c->asset_code . ' (' . trim(($c->brand?->name ?? $c->brand_name) . ' ' . $c->model) . ')')->join(' + ') }}
+                                        </div>
+                                    @endif
                                 @endif
                             </td>
                             <td>{{ $asset->financial_year ?? '-' }}</td>
