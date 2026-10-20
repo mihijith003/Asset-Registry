@@ -211,6 +211,11 @@ class Asset extends Model
         return $this->hasMany(AssetDisposal::class);
     }
 
+    public function revaluations()
+    {
+        return $this->hasMany(AssetRevaluation::class);
+    }
+
     public function sale()
     {
         return $this->hasOne(AssetSale::class, 'asset_id');

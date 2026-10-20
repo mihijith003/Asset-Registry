@@ -30,6 +30,9 @@
                 <a href="{{ route('asset-modifications.index') }}" class="nav-item {{ request()->routeIs('asset-modifications.*') ? 'active' : '' }}">
                     Asset Modification
                 </a>
+                <a href="{{ route('asset-revaluations.index') }}" class="nav-item {{ request()->routeIs('asset-revaluations.*') ? 'active' : '' }}">
+                    Revaluation
+                </a>
                 <a href="{{ route('asset-sales.index') }}" class="nav-item {{ request()->routeIs('asset-sales.*') ? 'active' : '' }}">
                     Asset Sale
                 </a>

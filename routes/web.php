@@ -4,6 +4,7 @@ use App\Http\Controllers\AssetAllocationController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetDisposalController;
 use App\Http\Controllers\AssetModificationController;
+use App\Http\Controllers\AssetRevaluationController;
 use App\Http\Controllers\AssetSaleController;
 use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\ProfileController;
@@ -61,6 +62,11 @@ Route::middleware(['auth', 'permission:modify assets'])->group(function () {
     
     // Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->name('asset-modifications.store');
     Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->middleware('throttle:10,1')->name('asset-modifications.store');
+});
+
+Route::middleware(['auth', 'permission:modify assets'])->group(function () {
+    Route::get('/asset-revaluations', [AssetRevaluationController::class, 'index'])->name('asset-revaluations.index');
+    Route::post('/asset-revaluations', [AssetRevaluationController::class, 'store'])->middleware('throttle:10,1')->name('asset-revaluations.store');
 });
 
 // ONLY Admin can access these
