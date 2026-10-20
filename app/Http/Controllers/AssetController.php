@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AssetController extends Controller
@@ -44,7 +45,12 @@ class AssetController extends Controller
     {
         $validated = $request->validate([
             'asset_type_id' => ['required', 'exists:asset_types,id'],
-            'asset_sub_type_id' => ['required', 'exists:asset_sub_types,id'],
+            'asset_sub_type_id' => [
+                'required',
+                Rule::exists('asset_sub_types', 'id')->where(function ($query) use ($request) {
+                    return $query->where('asset_type_id', $request->input('asset_type_id'));
+                }),
+            ],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'brand_name' => ['nullable', 'string', 'max:100'],
             'model' => ['nullable', 'string', 'max:100'],
@@ -58,6 +64,7 @@ class AssetController extends Controller
             'useful_life_months' => ['nullable', 'integer', 'min:1'],
             'comments' => ['nullable', 'string', 'max:1000'],
         ], [
+            'asset_sub_type_id.exists' => 'The selected asset sub type does not belong to the selected asset type.',
             'residual_value.lte' => 'The residual value must not exceed the asset cost.',
         ]);
 

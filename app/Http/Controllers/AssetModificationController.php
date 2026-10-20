@@ -81,7 +81,6 @@ class AssetModificationController extends Controller
             // The component that goes in. It is always required: even when a part is removed, a new one takes its place.
             'component_asset_id' => ['required', 'exists:assets,id', 'different:asset_id'],
             'modification_date' => ['required', 'date'],
-            'new_location' => ['nullable', 'string', 'max:100'],
             'comments' => ['nullable', 'string', 'max:1000'],
 
             // The component that comes out (optional): '' = none, 'new' = typed in below, or the id of one of the
@@ -175,8 +174,8 @@ class AssetModificationController extends Controller
             return ['The removed component cannot cost more than the asset it is removed from (' . number_format($parent->cost, 2) . ').', null];
         }
 
-        // The asset's current allocation is carried over to the new assets (unless a new location was typed in).
-        $allocation = empty($data['new_location']) ? $parent->currentAllocation : null;
+        // The asset's current allocation is carried over to the new assets.
+        $allocation = $parent->currentAllocation;
 
         // Depreciation: each asset's cost is held in layers that keep their own start date and life, so assets that
         // were registered on different dates keep their own age when they are combined (see App\Support\Depreciation).
@@ -200,11 +199,13 @@ class AssetModificationController extends Controller
             }
 
             $subType = ! empty($data['removed_asset_sub_type_id']) ? AssetSubType::find($data['removed_asset_sub_type_id']) : null;
+            $typeId = $subType?->asset_type_id ?? $parent->asset_type_id;
+            $subTypeId = $subType?->id ?? $parent->asset_sub_type_id;
 
             $removed = Asset::create([
-                'asset_code' => Asset::generateCode(),
-                'asset_type_id' => $subType?->asset_type_id ?? $parent->asset_type_id,
-                'asset_sub_type_id' => $subType?->id ?? $parent->asset_sub_type_id,
+                'asset_code' => Asset::generateCode((int) $typeId, (int) $subTypeId),
+                'asset_type_id' => $typeId,
+                'asset_sub_type_id' => $subTypeId,
                 'brand_name' => $data['removed_brand'] ?? null,
                 'model' => $data['removed_model'] ?? null,
                 'financial_year' => $parent->financial_year,
@@ -294,13 +295,13 @@ class AssetModificationController extends Controller
             $combined->layers()->delete();
         } else {
             $combined = Asset::create([
-                'asset_code' => Asset::generateCode(),
+                'asset_code' => Asset::generateCode((int) $parent->asset_type_id, (int) $parent->asset_sub_type_id),
                 'asset_type_id' => $parent->asset_type_id,
                 'asset_sub_type_id' => $parent->asset_sub_type_id,
                 'brand_name' => $brand ?: null,
                 'model' => $model ?: null,
                 'financial_year' => $parent->financial_year,
-                'location' => ($data['new_location'] ?? null) ?: $parent->location,
+                'location' => $parent->location,
                 'cost' => $totalCost,
             ]);
         }
@@ -335,7 +336,7 @@ class AssetModificationController extends Controller
             'removed_price' => $removed ? $removedPrice : null,
             'added_asset' => trim($component->asset_code . ' - ' . ($component->brand_name ?? '')),
             'new_value' => $totalCost,
-            'new_location' => $data['new_location'] ?? null,
+            'new_location' => null,
             'authorized_by' => $data['authorized_by'],
             'parent_original_cost' => $parent->cost,
             'component_original_cost' => $component->cost,

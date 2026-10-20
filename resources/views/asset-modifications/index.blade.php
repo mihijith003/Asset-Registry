@@ -36,7 +36,7 @@
                             <option value="">-- Select Asset --</option>
                             @foreach ($assets as $asset)
                                 <option value="{{ $asset->id }}" data-cost="{{ $asset->cost }}" {{ old('asset_id') == $asset->id ? 'selected' : '' }}>
-                                    {{ $asset->asset_code }} - {{ $asset->brand_name }} {{ $asset->model }}
+                                    {{ $asset->asset_code }} - {{ $asset->brand?->name ?? $asset->brand_name }} {{ $asset->model }}
                                 </option>
                             @endforeach
                         </select>
@@ -46,11 +46,11 @@
                         <label class="form-label">Modification Date <span class="required">*</span></label>
                         <input type="date" name="modification_date" value="{{ old('modification_date', date('Y-m-d')) }}" class="form-control" required>
                     </div>
+                </div>
 
-                    <div class="form-group">
-                        <label class="form-label">New Location</label>
-                        <input type="text" name="new_location" value="{{ old('new_location') }}" class="form-control" placeholder="e.g. Branch B" maxlength="100">
-                    </div>
+                {{-- Note: location is managed via asset allocations on the registry page --}}
+                <div style="font-size: 0.8125rem; color: var(--text-muted); margin-top: -0.5rem; margin-bottom: 1.25rem;">
+                    <span style="font-weight: 500;">Note:</span> The combined asset automatically inherits the selected asset's current allocation. To allocate or reassign it to a different branch or employee, use the <strong>Allocate</strong> button on the <a href="{{ route('assets.index') }}" style="color: var(--primary); text-decoration: underline;">Asset Registry</a>.
                 </div>
 
                 {{-- Component that is taken OUT (optional). It is registered as an asset of its own, with this price. --}}

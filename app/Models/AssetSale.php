@@ -34,14 +34,4 @@ class AssetSale extends Model
     {
         return $this->belongsTo(Asset::class);
     }
-
-    public function setAuthorizedByAttribute($value)
-    {
-        $this->attributes['authorized_BY'] = $value;
-    }
-
-    public function getAuthorizedByAttribute()
-    {
-        return $this->attributes['authorized_BY'] ?? ($this->attributes['authorized_by'] ?? null);
-    }
 }

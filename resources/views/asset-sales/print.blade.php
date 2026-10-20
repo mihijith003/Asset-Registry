@@ -23,7 +23,9 @@
         <tr><th>Sale ID</th><td class="mono">{{ $sale->reference }}</td></tr>
         <tr><th>Sale date</th><td>{{ $sale->sale_date ?? '-' }}</td></tr>
         <tr><th>Authorized by</th><td>{{ $sale->authorized_by ?? '-' }}</td></tr>
-        {{-- Buyer details are not captured by the sale form yet; they show only if present in the record --}}
+        @if ($sale->payment_method)
+            <tr><th>Payment method</th><td>{{ $sale->payment_method }}</td></tr>
+        @endif
         @if ($sale->buyer_name)
             <tr><th>Buyer</th><td>{{ $sale->buyer_name }}{{ $sale->buyer_contact ? ' (' . $sale->buyer_contact . ')' : '' }}</td></tr>
         @endif
@@ -37,7 +39,7 @@
         @if ($asset)
             <tr><th>Asset code</th><td class="mono">{{ $asset->asset_code }}</td></tr>
             <tr><th>Type</th><td>{{ $asset->assetType->type_name ?? '-' }}{{ $asset->subType ? ' / ' . $asset->subType->sub_type_name : '' }}</td></tr>
-            <tr><th>Brand &amp; model</th><td>{{ trim(($asset->brand_name ?? '') . ' ' . ($asset->model ?? '')) ?: '-' }}</td></tr>
+            <tr><th>Brand &amp; model</th><td>{{ trim(($asset->brand?->name ?? $asset->brand_name ?? '') . ' ' . ($asset->model ?? '')) ?: '-' }}</td></tr>
             <tr><th>Financial year</th><td>{{ $asset->financial_year ?? '-' }}</td></tr>
             <tr><th>Location</th><td>{{ $asset->location_label ?? '-' }}</td></tr>
         @else
@@ -70,7 +72,7 @@
         </div>
         <div class="signature">
             <div class="line"></div>
-            <div class="name"></div>
+            <div class="name">{{ $sale->buyer_name }}</div>
             <div class="sub">Buyer (name &amp; signature)</div>
         </div>
     </div>

@@ -17,24 +17,25 @@ class AssetSaleController extends Controller
      */
     public function index(): View
     {
-        $sales = AssetSale::with('asset')
+        $sales = AssetSale::with(['asset.assetType', 'asset.subType', 'asset.brand'])
             ->orderByDesc('id')
             ->get(); 
        
-        $assets = Asset::whereNull('merged_into_asset_id')->orderBy('asset_code')->get();
+        $assets = Asset::active()->with(['assetType', 'subType', 'brand'])->orderBy('asset_code')->get();
 
         return view('asset-sales.index', compact('sales', 'assets'));
     }
 
     /**
      * Store a newly created asset sale in storage.
-     * Note: Inputs are limited to asset_id, price, and authorized_by.
-     * No fields for status, asset_name, or sale_price.
      */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')],
+            'buyer_name' => ['required', 'string', 'max:150'],
+            'buyer_contact' => ['nullable', 'string', 'max:100'],
+            'payment_method' => ['nullable', 'string', 'max:50'],
             'price' => ['required', 'numeric', 'min:0'],
             'comments' => ['nullable', 'string', 'max:1000'], 
             'admin_password' => ['required', 'string'],
@@ -49,12 +50,14 @@ class AssetSaleController extends Controller
                 ->withErrors(['admin_password' => 'Incorrect admin password. The sale was not recorded.']);
         }
 
-        
         $sale = AssetSale::create([
             'asset_id' => $validated['asset_id'],
+            'sale_date' => now()->toDateString(),
+            'buyer_name' => $validated['buyer_name'],
+            'buyer_contact' => $validated['buyer_contact'] ?? null,
+            'payment_method' => $validated['payment_method'] ?? null,
             'price' => $validated['price'],
             'authorized_by' => $admin->name,
-            'sale_date' => now()->toDateString(),
             'comments' => $validated['comments'] ?? null,
         ]);
 

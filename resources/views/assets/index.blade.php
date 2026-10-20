@@ -14,8 +14,8 @@
                 @csrf
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Asset Type <span class="required">*</span></label>
-                        <select name="asset_type_id" class="form-select" required>
+                        <label class="form-label" for="asset_type_id">Asset Type <span class="required">*</span></label>
+                        <select name="asset_type_id" id="asset_type_id" class="form-select" required>
                             <option value="">-- Select Asset Type --</option>
                             @foreach ($assetTypes as $type)
                                 <option value="{{ $type->id }}" {{ old('asset_type_id') == $type->id ? 'selected' : '' }}>
@@ -26,11 +26,11 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Asset Sub Type <span class="required">*</span></label>
-                        <select name="asset_sub_type_id" class="form-select" required>
+                        <label class="form-label" for="asset_sub_type_id">Asset Sub Type <span class="required">*</span></label>
+                        <select name="asset_sub_type_id" id="asset_sub_type_id" class="form-select" required>
                             <option value="">-- Select Asset Sub Type --</option>
                             @foreach ($assetSubTypes as $subType)
-                                <option value="{{ $subType->id }}" {{ old('asset_sub_type_id') == $subType->id ? 'selected' : '' }}>
+                                <option value="{{ $subType->id }}" data-asset-type-id="{{ $subType->asset_type_id }}" {{ old('asset_sub_type_id') == $subType->id ? 'selected' : '' }}>
                                     {{ $subType->sub_type_name }}
                                 </option>
                             @endforeach
@@ -258,6 +258,54 @@
     </div>
 
     <script>
+        (function () {
+            var typeSelect = document.getElementById('asset_type_id');
+            var subTypeSelect = document.getElementById('asset_sub_type_id');
+            if (!typeSelect || !subTypeSelect) {
+                return;
+            }
+
+            function filterSubTypes(resetSelection) {
+                var selectedTypeId = typeSelect.value;
+                var currentSubVal = subTypeSelect.value;
+                var hasValidSelection = false;
+
+                for (var i = 0; i < subTypeSelect.options.length; i++) {
+                    var opt = subTypeSelect.options[i];
+                    if (!opt.value) {
+                        continue;
+                    }
+                    var matches = !!(selectedTypeId && opt.getAttribute('data-asset-type-id') === selectedTypeId);
+                    opt.hidden = !matches;
+                    opt.disabled = !matches;
+                    opt.style.display = matches ? '' : 'none';
+                    if (matches && opt.value === currentSubVal) {
+                        hasValidSelection = true;
+                    }
+                }
+
+                if (resetSelection || (!hasValidSelection && currentSubVal)) {
+                    subTypeSelect.value = '';
+                }
+            }
+
+            typeSelect.addEventListener('change', function () {
+                filterSubTypes(true);
+            });
+
+            var form = typeSelect.closest('form');
+            if (form) {
+                form.addEventListener('reset', function () {
+                    setTimeout(function () {
+                        filterSubTypes(true);
+                    }, 0);
+                });
+            }
+
+            // Initial filter on page load (preserves old() selection if matching)
+            filterSubTypes(false);
+        })();
+
         (function () {
             var modal = document.getElementById('allocate-modal');
             var form = document.getElementById('allocate-form');
