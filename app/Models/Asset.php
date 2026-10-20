@@ -12,17 +12,28 @@ class Asset extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'name',
         'asset_code',
         'asset_type_id',
         'asset_sub_type_id',
+        'brand_id',
         'brand_name',
         'model',
+        'purchase_date',
+        'supplier',
+        'po_reference',
+        'invoice_reference',
         'financial_year',
         'location',
         'cost',
+        'residual_value',
+        'useful_life_months',
+        'comments',
         'merged_into_asset_id', // NEW: set on the original assets once they are combined into a new asset
         'origin_asset_id', // NEW: for a removed component, the asset it originally came with
+    ];
+
+    protected $casts = [
+        'purchase_date' => 'date',
     ];
 
     /**
@@ -95,7 +106,7 @@ class Asset extends Model
     }
 
     /**
-     * NEW: one layer for a newly registered asset, starting today, with the life of its sub type.
+     * NEW: one layer for a newly registered asset, starting today (or on purchase date), with the asset's custom useful life or its sub type's default.
      */
     public function addInitialLayer(): void
     {
@@ -104,8 +115,8 @@ class Asset extends Model
         $this->layers()->create([
             'source_asset_id' => $this->id,
             'cost' => $this->cost,
-            'start_date' => now()->toDateString(),
-            'useful_life_months' => $years ? $years * 12 : null,
+            'start_date' => $this->purchase_date ? $this->purchase_date->toDateString() : now()->toDateString(),
+            'useful_life_months' => $this->useful_life_months ?? ($years ? $years * 12 : null),
         ]);
     }
 
@@ -114,7 +125,11 @@ class Asset extends Model
      */
     public function accumulatedDepreciation(?\Illuminate\Support\Carbon $asOf = null): float
     {
-        return \App\Support\Depreciation::accumulated($this->layers, $asOf ?? \Illuminate\Support\Carbon::today());
+        return \App\Support\Depreciation::accumulated(
+            $this->layers,
+            $asOf ?? \Illuminate\Support\Carbon::today(),
+            (float) ($this->residual_value ?? 0)
+        );
     }
 
     /**

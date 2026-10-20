@@ -36,12 +36,40 @@ class Depreciation
 
     /**
      * Accumulated depreciation of the given layers (models or arrays) as of a date.
+     * When residual_value is provided (or resolved from the asset), it is apportioned
+     * across the layers in proportion to each layer's cost, and depreciation stops
+     * once net book value reaches residual_value.
      */
-    public static function accumulated(iterable $layers, Carbon $asOf): float
+    public static function accumulated(iterable $layers, Carbon $asOf, ?float $residualValue = null): float
     {
-        $total = 0.0;
+        $layerList = is_array($layers) ? array_values($layers) : iterator_to_array($layers, false);
 
-        foreach ($layers as $layer) {
+        if (empty($layerList)) {
+            return 0.0;
+        }
+
+        if ($residualValue === null) {
+            $residualValue = self::resolveResidualValue($layerList);
+        }
+
+        $totalCost = 0.0;
+        foreach ($layerList as $layer) {
+            $cost = (float) self::value($layer, 'cost');
+            if ($cost > 0) {
+                $totalCost += $cost;
+            }
+        }
+
+        if ($totalCost <= 0.0) {
+            return 0.0;
+        }
+
+        $residualValue = max(0.0, min((float) $residualValue, $totalCost));
+        $depreciableRatio = ($totalCost > 0) ? ($totalCost - $residualValue) / $totalCost : 1.0;
+
+        $totalAccumulated = 0.0;
+
+        foreach ($layerList as $layer) {
             $cost = (float) self::value($layer, 'cost');
             $life = (int) self::value($layer, 'useful_life_months');
             $start = self::value($layer, 'start_date');
@@ -50,11 +78,39 @@ class Depreciation
                 continue; // no useful life set = not depreciated
             }
 
+            // Each layer's depreciable cost is apportioned in proportion to its cost:
+            // cost - (residualValue * cost / totalCost) = cost * depreciableRatio
+            $depreciableCost = $cost * $depreciableRatio;
+
             $months = min($life, self::monthsBetween(Carbon::parse($start)->startOfDay(), $asOf->copy()->startOfDay()));
-            $total += $cost * $months / $life;
+            $totalAccumulated += $depreciableCost * $months / $life;
         }
 
-        return round($total, 2);
+        $maxDepreciation = max(0.0, $totalCost - $residualValue);
+
+        return round(min($totalAccumulated, $maxDepreciation), 2);
+    }
+
+    private static function resolveResidualValue(array $layerList): float
+    {
+        static $assetCache = [];
+
+        foreach ($layerList as $layer) {
+            if ($layer instanceof \App\Models\AssetDepreciationLayer) {
+                if ($layer->relationLoaded('asset') && $layer->asset) {
+                    return (float) ($layer->asset->residual_value ?? 0);
+                }
+                if (! empty($layer->asset_id)) {
+                    $asset = $assetCache[$layer->asset_id] ??= \App\Models\Asset::find($layer->asset_id);
+                    return (float) ($asset?->residual_value ?? 0);
+                }
+            } elseif (is_array($layer) && isset($layer['asset_id'])) {
+                $asset = $assetCache[$layer['asset_id']] ??= \App\Models\Asset::find($layer['asset_id']);
+                return (float) ($asset?->residual_value ?? 0);
+            }
+        }
+
+        return 0.0;
     }
 
     /**

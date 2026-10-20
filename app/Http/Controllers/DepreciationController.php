@@ -50,8 +50,8 @@ class DepreciationController extends Controller
             $closingAsOf = $endDate && $endDate->lt($closingDate) ? $endDate : $closingDate;
             $openingAsOf = $endDate && $endDate->lt($yearStart) ? $endDate : $yearStart;
 
-            $opening = Depreciation::accumulated($asset->layers, $openingAsOf);
-            $closing = Depreciation::accumulated($asset->layers, $closingAsOf);
+            $opening = Depreciation::accumulated($asset->layers, $openingAsOf, (float) ($asset->residual_value ?? 0));
+            $closing = Depreciation::accumulated($asset->layers, $closingAsOf, (float) ($asset->residual_value ?? 0));
 
             $rows[] = (object) [
                 'asset' => $asset,
@@ -98,9 +98,10 @@ class DepreciationController extends Controller
 
                 $subType->update(['useful_life_years' => $years]);
 
-                // Layers hold their own copy of the life; update the ones whose cost came from this sub type.
+                // Layers hold their own copy of the life; update the ones whose cost came from this sub type
+                // (except assets that have their own custom useful_life_months explicitly set).
                 DB::table('asset_depreciation_layers')
-                    ->whereIn('source_asset_id', Asset::where('asset_sub_type_id', $subType->id)->pluck('id'))
+                    ->whereIn('source_asset_id', Asset::where('asset_sub_type_id', $subType->id)->whereNull('useful_life_months')->pluck('id'))
                     ->update(['useful_life_months' => $years ? $years * 12 : null]);
             }
         });
