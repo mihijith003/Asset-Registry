@@ -27,12 +27,7 @@ class AssetModification extends Model
         return 'MOD-' . str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
     }
 
-    // NEW: label shown in the history table
-    public const TYPES = [
-        'upgrade' => 'Upgrade',
-        'downgrade' => 'Downgrade',
-        'replacement' => 'Replacement',
-    ];
+    public const TYPES = ['upgrade', 'downgrade'];
 
     // NEW: lets $mod->reverted_at be used as a date.
     protected $casts = [

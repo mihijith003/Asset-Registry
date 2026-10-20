@@ -14,6 +14,23 @@
                 @csrf
                 <div class="form-row">
                     <div class="form-group">
+                        <label class="form-label">Modification Type <span class="required">*</span></label>
+                        <div style="display: flex; gap: 1.5rem; align-items: center; min-height: 38px;">
+                            <div class="form-check form-check-inline" style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                                <input class="form-check-input" type="radio" name="modification_type" id="type_upgrade" value="upgrade" {{ old('modification_type') === 'upgrade' ? 'checked' : '' }} required style="cursor: pointer; margin: 0;">
+                                <label class="form-check-label" for="type_upgrade" style="cursor: pointer; margin-bottom: 0;">Upgrade</label>
+                            </div>
+                            <div class="form-check form-check-inline" style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                                <input class="form-check-input" type="radio" name="modification_type" id="type_downgrade" value="downgrade" {{ old('modification_type') === 'downgrade' ? 'checked' : '' }} required style="cursor: pointer; margin: 0;">
+                                <label class="form-check-label" for="type_downgrade" style="cursor: pointer; margin-bottom: 0;">Downgrade</label>
+                            </div>
+                        </div>
+                        @error('modification_type')
+                            <div class="error-text">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="form-group">
                         <label class="form-label">Asset <span class="required">*</span></label>
                         <select name="asset_id" id="asset_id" class="form-select" required>
                             <option value="">-- Select Asset --</option>
@@ -214,7 +231,7 @@
                         updatePreview();
                     }
 
-                    // Live preview: new cost and whether this is an upgrade or a downgrade.
+                    // Live preview: new cost and modification type label from radio selection.
                     function updatePreview() {
                         var assetCost = optionCost(assetSelect);
                         var addedCost = optionCost(componentSelect);
@@ -226,11 +243,17 @@
                         var removedPrice = partSelect.value !== '' ? (parseFloat(priceInput.value) || 0) : 0;
                         var newCost = assetCost - removedPrice + addedCost;
                         var diff = addedCost - removedPrice;
-                        var label = diff > 0 ? 'Upgrade' : (diff < 0 ? 'Downgrade' : 'Replacement');
+                        var selectedRadio = form.querySelector('input[name="modification_type"]:checked');
+                        var label = selectedRadio ? (selectedRadio.value === 'upgrade' ? 'Upgrade' : 'Downgrade') : '';
 
-                        preview.innerHTML = '<strong>' + label + '</strong> &middot; new asset cost LKR ' + money(newCost)
+                        preview.innerHTML = (label ? '<strong>' + label + '</strong> &middot; ' : '')
+                            + 'new asset cost LKR ' + money(newCost)
                             + ' <span class="muted">(' + (diff >= 0 ? '+' : '-') + money(Math.abs(diff)) + ')</span>';
                     }
+
+                    form.querySelectorAll('input[name="modification_type"]').forEach(function (radio) {
+                        radio.addEventListener('change', updatePreview);
+                    });
 
                     assetSelect.addEventListener('change', function () { fillParts(); updateMode(); });
                     partSelect.addEventListener('change', function () {
@@ -295,7 +318,7 @@
                             </td>
                             <td>
                                 @if ($mod->modification_type)
-                                    <span class="badge {{ $mod->modification_type === 'upgrade' ? 'badge-success' : ($mod->modification_type === 'downgrade' ? 'badge-danger' : 'badge-secondary') }}">{{ \App\Models\AssetModification::TYPES[$mod->modification_type] ?? $mod->modification_type }}</span>
+                                    <span class="badge {{ $mod->modification_type === 'upgrade' ? 'badge-success' : 'badge-secondary' }}">{{ ucfirst($mod->modification_type) }}</span>
                                 @else
                                     -
                                 @endif

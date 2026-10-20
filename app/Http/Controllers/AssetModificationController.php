@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use App\Models\ActivityLog;
 
@@ -70,12 +71,12 @@ class AssetModificationController extends Controller
      *
      * The selected asset and the added component are COMBINED into a brand-new asset. If a component is
      * removed during the modification, it goes back into the registry as an asset of its own (with the price
-     * entered), so it can be used in future modifications. The modification is an upgrade when the added
-     * component costs more than the removed one, a downgrade when it costs less.
+     * entered), so it can be used in future modifications.
      */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'modification_type' => ['required', Rule::in(AssetModification::TYPES)],
             'asset_id' => ['required', 'exists:assets,id'],
             // The component that goes in. It is always required: even when a part is removed, a new one takes its place.
             'component_asset_id' => ['required', 'exists:assets,id', 'different:asset_id'],
@@ -144,7 +145,7 @@ class AssetModificationController extends Controller
 
         return redirect()->route('asset-modifications.index')->with(
             'success',
-            'Asset modification recorded (' . strtolower(AssetModification::TYPES[$type]) . '). '
+            'Asset modification recorded (' . strtolower($type) . '). '
                 . ($restoredCode
                     ? 'This undid an earlier modification, so the original asset ' . $restoredCode . ' is back in the registry under its original code'
                     : 'The assets were combined into a new asset')
@@ -321,9 +322,7 @@ class AssetModificationController extends Controller
         $parent->update(['merged_into_asset_id' => $combined->id]);
         $component->update(['merged_into_asset_id' => $combined->id]);
 
-        // Upgrade when the added component costs more than the removed one, downgrade when it costs less.
-        $difference = round((float) $component->cost - $removedPrice, 2);
-        $type = $difference > 0 ? 'upgrade' : ($difference < 0 ? 'downgrade' : 'replacement');
+        $type = $data['modification_type'];
 
         AssetModification::create([
             'asset_id' => $parent->id,
