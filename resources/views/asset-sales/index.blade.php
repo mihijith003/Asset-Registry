@@ -25,24 +25,6 @@
             <form id="asset-sale-form" action="{{ route('asset-sales.store') }}" method="POST">
                 @csrf
                 <div class="form-row">
-                    <!-- Sale ID -->
-                    <div class="form-group">
-                        <label for="sale_id" class="form-label">
-                            Sale ID <span class="required">*</span>
-                        </label>
-                        <input type="text" 
-                               id="sale_id" 
-                               name="sale_id" 
-                               value="{{ old('sale_id') }}"
-                               placeholder="e.g. SALE-001"
-                               maxlength="50"
-                               required
-                               class="form-control">
-                        @error('sale_id')
-                            <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
-                        @enderror
-                    </div>
-
                     <!-- Asset ID -->
                     <div class="form-group">
                         <label for="asset_id" class="form-label">
@@ -159,7 +141,7 @@
                     @foreach ($sales as $sale)
                         <tr>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
-                                {{ $sale->sales_ID ?? $sale->sale_id }}
+                                {{ $sale->reference }}
                             </td>
                             <td>
                                 <div>

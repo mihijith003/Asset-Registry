@@ -30,14 +30,12 @@ class AssetDisposalController extends Controller
 
     /**
      * Store a newly created asset disposal in storage.
-     * Note: Inputs are limited to disposal_id, asset_id, and method.
+     * Note: Inputs are limited to asset_id, method, and comments.
      * No fields for disposal_method or reason.
      */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'disposal_id' => ['required', 'string', 'max:50', 'unique:asset_disposals,disposal_id'],
-    
             'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')],
             'method' => ['required', 'string', 'in:Donated,Scrapped,Lost'],
             'comments' => ['nullable', 'string', 'max:1000'], 
@@ -68,7 +66,6 @@ class AssetDisposalController extends Controller
         // Keep the created record so we can link to its printable document below.
       
         $disposal = AssetDisposal::create([
-            'disposal_id' => $validated['disposal_id'],
             'asset_id' => $validated['asset_id'],
             'method' => $validated['method'],
             'disposal_date' => now()->toDateString(),

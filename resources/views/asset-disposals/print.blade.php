@@ -1,10 +1,10 @@
 {{-- NEW: printable disposal record for a single asset disposal (route: asset-disposals.print) --}}
 @extends('layouts.print')
 
-@section('title', 'Asset Disposal Record - ' . $disposal->disposal_id)
+@section('title', 'Asset Disposal Record - ' . $disposal->reference)
 @section('back', route('asset-disposals.index'))
 @section('doc-title', 'Asset Disposal Record')
-@section('doc-ref', 'Disposal ID: ' . $disposal->disposal_id)
+@section('doc-ref', 'Disposal ID: ' . $disposal->reference)
 
 @section('content')
     @php
@@ -16,7 +16,7 @@
 
     <h2>Disposal details</h2>
     <table class="details">
-        <tr><th>Disposal ID</th><td class="mono">{{ $disposal->disposal_id }}</td></tr>
+        <tr><th>Disposal ID</th><td class="mono">{{ $disposal->reference }}</td></tr>
         <tr><th>Disposal date</th><td>{{ $disposal->disposal_date ?? '-' }}</td></tr>
         <tr><th>Method</th><td>{{ $disposal->method }}</td></tr>
         <tr><th>Authorized by</th><td>{{ $disposal->authorized_by ?? '-' }}</td></tr>

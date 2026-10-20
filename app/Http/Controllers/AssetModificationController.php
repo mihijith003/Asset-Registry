@@ -76,7 +76,6 @@ class AssetModificationController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'modification_id' => ['required', 'string', 'max:50', 'unique:asset_modifications,modification_id'],
             'asset_id' => ['required', 'exists:assets,id'],
             // The component that goes in. It is always required: even when a part is removed, a new one takes its place.
             'component_asset_id' => ['required', 'exists:assets,id', 'different:asset_id'],
@@ -327,7 +326,6 @@ class AssetModificationController extends Controller
         $type = $difference > 0 ? 'upgrade' : ($difference < 0 ? 'downgrade' : 'replacement');
 
         AssetModification::create([
-            'modification_id' => $data['modification_id'],
             'asset_id' => $parent->id,
             'component_asset_id' => $component->id,
             'result_asset_id' => $combined->id,

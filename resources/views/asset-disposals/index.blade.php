@@ -25,24 +25,6 @@
             <form id="asset-disposal-form" action="{{ route('asset-disposals.store') }}" method="POST">
                 @csrf
                 <div class="form-row">
-                    <!-- Disposal ID -->
-                    <div class="form-group">
-                        <label for="disposal_id" class="form-label">
-                            Disposal ID <span class="required">*</span>
-                        </label>
-                        <input type="text" 
-                               id="disposal_id" 
-                               name="disposal_id" 
-                               value="{{ old('disposal_id') }}"
-                               placeholder="e.g. DISP-001"
-                               maxlength="50"
-                               required
-                               class="form-control">
-                        @error('disposal_id')
-                            <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
-                        @enderror
-                    </div>
-
                     <!-- Asset ID -->
                     <div class="form-group">
                         <label for="asset_id" class="form-label">
@@ -131,7 +113,7 @@
                 @forelse(\App\Models\AssetDisposal::where('approval_status', 'pending')->get() as $pending)
                     <tr>
                         <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
-                            {{ $pending->disposal_id }}
+                            {{ $pending->reference }}
                         </td>
                         <td>
                             <div>
@@ -204,7 +186,7 @@
                     @foreach ($disposals as $disposal)
                         <tr>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
-                                {{ $disposal->disposal_id }}
+                                {{ $disposal->reference }}
                             </td>
                             <td>
                                 <div>

@@ -1,10 +1,10 @@
 {{-- NEW: printable sale voucher for a single asset sale (route: asset-sales.print) --}}
 @extends('layouts.print')
 
-@section('title', 'Asset Sale Voucher - ' . $sale->sales_ID)
+@section('title', 'Asset Sale Voucher - ' . $sale->reference)
 @section('back', route('asset-sales.index'))
 @section('doc-title', 'Asset Sale Voucher')
-@section('doc-ref', 'Sale ID: ' . $sale->sales_ID)
+@section('doc-ref', 'Sale ID: ' . $sale->reference)
 
 @section('content')
     @php
@@ -20,7 +20,7 @@
 
     <h2>Sale details</h2>
     <table class="details">
-        <tr><th>Sale ID</th><td class="mono">{{ $sale->sales_ID }}</td></tr>
+        <tr><th>Sale ID</th><td class="mono">{{ $sale->reference }}</td></tr>
         <tr><th>Sale date</th><td>{{ $sale->sale_date ?? '-' }}</td></tr>
         <tr><th>Authorized by</th><td>{{ $sale->authorized_by ?? '-' }}</td></tr>
         {{-- Buyer details are not captured by the sale form yet; they show only if present in the record --}}

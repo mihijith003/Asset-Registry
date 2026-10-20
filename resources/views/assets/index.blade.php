@@ -130,7 +130,7 @@
                                             Originally came with {{ $asset->originAsset->asset_code }} ({{ trim($asset->originAsset->brand_name . ' ' . $asset->originAsset->model) }}).
                                         @endif
                                         Removed from {{ $asset->removalModification->asset->asset_code ?? 'Asset #' . $asset->removalModification->asset_id }}
-                                        in {{ $asset->removalModification->modification_id }} ({{ $asset->removalModification->modification_date }}).
+                                        in {{ $asset->removalModification->reference }} ({{ $asset->removalModification->modification_date }}).
                                     </div>
                                 @endif
                                 @if ($asset->components->isNotEmpty())

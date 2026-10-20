@@ -10,7 +10,6 @@ class AssetDisposal extends Model
     use HasFactory;
 
     protected $fillable = [
-        'disposal_id',
         'asset_id',
         'method',
         'disposal_date',
@@ -18,6 +17,14 @@ class AssetDisposal extends Model
         'comments', // NEW: notes from the person recording the disposal
         'approval_status',
     ];
+
+    /**
+     * Display accessor that formats the id for humans (e.g. DIS-0001).
+     */
+    public function getReferenceAttribute(): string
+    {
+        return 'DIS-' . str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
+    }
 
     public function asset()
     {

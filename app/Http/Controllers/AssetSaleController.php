@@ -28,13 +28,12 @@ class AssetSaleController extends Controller
 
     /**
      * Store a newly created asset sale in storage.
-     * Note: Inputs are limited to sale_id, asset_id, price, and authorized_by.
+     * Note: Inputs are limited to asset_id, price, and authorized_by.
      * No fields for status, asset_name, or sale_price.
      */
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'sale_id' => ['required', 'string', 'max:50', 'unique:asset_sales,sales_ID'],
             'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')],
             'price' => ['required', 'numeric', 'min:0'],
             'comments' => ['nullable', 'string', 'max:1000'], 
@@ -52,10 +51,9 @@ class AssetSaleController extends Controller
 
         
         $sale = AssetSale::create([
-            'sales_ID' => $validated['sale_id'],
             'asset_id' => $validated['asset_id'],
             'price' => $validated['price'],
-            'authorized_BY' => $admin->name,
+            'authorized_by' => $admin->name,
             'sale_date' => now()->toDateString(),
             'comments' => $validated['comments'] ?? null,
         ]);

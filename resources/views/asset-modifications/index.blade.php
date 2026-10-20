@@ -14,11 +14,6 @@
                 @csrf
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Modification ID <span class="required">*</span></label>
-                        <input type="text" name="modification_id" value="{{ old('modification_id') }}" class="form-control" placeholder="e.g. MOD-001" maxlength="50" required>
-                    </div>
-
-                    <div class="form-group">
                         <label class="form-label">Asset <span class="required">*</span></label>
                         <select name="asset_id" id="asset_id" class="form-select" required>
                             <option value="">-- Select Asset --</option>
@@ -292,7 +287,7 @@
                     @foreach ($modifications as $mod)
                         <tr>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
-                                {{ $mod->modification_id }}
+                                {{ $mod->reference }}
                                 {{-- modifications made before upgrade/downgrade existed could be reverted --}}
                                 @if ($mod->reverted_at)
                                     <div><span class="badge badge-secondary" title="Reverted on {{ $mod->reverted_at->format('Y-m-d H:i') }}">Reverted</span></div>
