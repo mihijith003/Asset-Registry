@@ -19,6 +19,7 @@ class MasterFileController extends Controller
             ->get();
 
         $assetSubTypes = AssetSubType::with('assetType')
+            ->withCount('assets')
             ->orderBy('asset_type_id')
             ->orderBy('sub_type_name')
             ->get();

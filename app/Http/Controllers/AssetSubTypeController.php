@@ -3,53 +3,107 @@
 namespace App\Http\Controllers;
 
 use App\Models\AssetSubType;
-use App\Models\AssetType;
-use App\Models\Asset;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AssetSubTypeController extends Controller
 {
-    public function index()
+    /**
+     * Store a newly created asset sub type.
+     */
+    public function store(Request $request): RedirectResponse
     {
-        // Load subtypes with their parent types for the table, and load types for the form dropdowns
-        $subTypes = AssetSubType::with('assetType')->orderBy('sub_type_name')->get();
-        $assetTypes = AssetType::orderBy('name')->get();
-        
-        return view('asset-subtypes.index', compact('subTypes', 'assetTypes'));
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
+        $validated = $request->validateWithBag('assetSubType', [
             'asset_type_id' => ['required', 'exists:asset_types,id'],
-            'sub_type_name' => ['required', 'string', 'max:100'],
-            'useful_life_years' => ['nullable', 'integer', 'min:0'],
+            'sub_type_name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('asset_sub_types', 'sub_type_name')
+                    ->where(fn ($q) => $q->where('asset_type_id', $request->asset_type_id)),
+            ],
+            'sub_type_code' => [
+                'required',
+                'string',
+                'max:10',
+                Rule::unique('asset_sub_types', 'sub_type_code')
+                    ->where(fn ($q) => $q->where('asset_type_id', $request->asset_type_id)),
+            ],
+            'useful_life_years' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
+
+        $validated['sub_type_code'] = strtoupper(trim($validated['sub_type_code']));
+        $validated['sub_type_name'] = trim($validated['sub_type_name']);
+        $validated['useful_life_years'] = ! empty($validated['useful_life_years']) ? (int) $validated['useful_life_years'] : null;
 
         AssetSubType::create($validated);
-        return back()->with('success', 'Asset subtype added successfully.');
+
+        return redirect()->route('master-files.index')
+            ->with('active_tab', 'sub-types')
+            ->with('success', 'Asset sub type added successfully.');
     }
 
-    public function update(Request $request, AssetSubType $assetSubType)
+    /**
+     * Update the specified asset sub type.
+     */
+    public function update(Request $request, $id): RedirectResponse
     {
-        $validated = $request->validate([
+        $subType = AssetSubType::findOrFail($id);
+
+        $validated = $request->validateWithBag('assetSubType', [
             'asset_type_id' => ['required', 'exists:asset_types,id'],
-            'sub_type_name' => ['required', 'string', 'max:100'],
-            'useful_life_years' => ['nullable', 'integer', 'min:0'],
+            'sub_type_name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('asset_sub_types', 'sub_type_name')
+                    ->where(fn ($q) => $q->where('asset_type_id', $request->asset_type_id))
+                    ->ignore($subType->id),
+            ],
+            'sub_type_code' => [
+                'required',
+                'string',
+                'max:10',
+                Rule::unique('asset_sub_types', 'sub_type_code')
+                    ->where(fn ($q) => $q->where('asset_type_id', $request->asset_type_id))
+                    ->ignore($subType->id),
+            ],
+            'useful_life_years' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
-        $assetSubType->update($validated);
-        return back()->with('success', 'Asset subtype updated successfully.');
+        $validated['sub_type_code'] = strtoupper(trim($validated['sub_type_code']));
+        $validated['sub_type_name'] = trim($validated['sub_type_name']);
+        $validated['useful_life_years'] = ! empty($validated['useful_life_years']) ? (int) $validated['useful_life_years'] : null;
+
+        $subType->update($validated);
+
+        return redirect()->route('master-files.index')
+            ->with('active_tab', 'sub-types')
+            ->with('success', 'Asset sub type updated successfully.');
     }
 
-    public function destroy(AssetSubType $assetSubType)
+    /**
+     * Remove the specified asset sub type if no assets reference it.
+     */
+    public function destroy($id): RedirectResponse
     {
-        // Safety Check: Do not delete if assets are actively using this subtype.
-        if (Asset::where('asset_sub_type_id', $assetSubType->id)->exists()) {
-            return back()->withErrors(['error' => 'Cannot delete subtype: It is currently assigned to one or more assets.']);
+        $subType = AssetSubType::findOrFail($id);
+
+        $assetCount = $subType->assets()->count();
+
+        if ($assetCount > 0) {
+            $countLabel = $assetCount . ' ' . ($assetCount === 1 ? 'asset' : 'assets');
+
+            return redirect()->route('master-files.index')
+                ->with('active_tab', 'sub-types')
+                ->with('error', "Cannot delete asset sub type: it is still in use by {$countLabel}.");
         }
 
-        $assetSubType->delete();
-        return back()->with('success', 'Asset subtype deleted successfully.');
+        $subType->delete();
+
+        return redirect()->route('master-files.index')
+            ->with('active_tab', 'sub-types')
+            ->with('success', 'Asset sub type deleted successfully.');
     }
 }

@@ -8,7 +8,7 @@
             $hasErrors = isset($errors) && $errors instanceof \Illuminate\Support\ViewErrorBag;
             if ($hasErrors && $errors->assetType->any()) {
                 $activeTab = 'asset-types';
-            } elseif ($hasErrors && $errors->subType->any()) {
+            } elseif ($hasErrors && ($errors->assetSubType->any() || $errors->subType->any())) {
                 $activeTab = 'sub-types';
             } elseif ($hasErrors && $errors->brand->any()) {
                 $activeTab = 'brands';
