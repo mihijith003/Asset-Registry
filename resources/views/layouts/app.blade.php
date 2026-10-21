@@ -24,6 +24,9 @@
                 <a href="{{ route('assets.index') }}" class="nav-item {{ request()->routeIs('assets.*') ? 'active' : '' }}">
                     Asset Registry
                 </a>
+                <a href="{{ route('master-files.index') }}" class="nav-item {{ request()->routeIs('master-files.*') ? 'active' : '' }}">
+                    Master Files
+                </a>
                 <a href="{{ route('depreciation.index') }}" class="nav-item {{ request()->routeIs('depreciation.*') ? 'active' : '' }}">
                     Depreciation
                 </a>

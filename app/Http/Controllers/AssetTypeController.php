@@ -3,45 +3,82 @@
 namespace App\Http\Controllers;
 
 use App\Models\AssetType;
-use App\Models\AssetSubType;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AssetTypeController extends Controller
 {
-    public function index()
+    /**
+     * Store a newly created asset type.
+     */
+    public function store(Request $request): RedirectResponse
     {
-        $assetTypes = AssetType::orderBy('name')->get();
-        return view('asset-types.index', compact('assetTypes'));
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', 'unique:asset_types,name'],
+        $validated = $request->validateWithBag('assetType', [
+            'type_name' => ['required', 'string', 'max:100', 'unique:asset_types,type_name'],
+            'type_code' => ['required', 'string', 'max:10', 'unique:asset_types,type_code'],
         ]);
+
+        $validated['type_code'] = strtoupper(trim($validated['type_code']));
+        $validated['type_name'] = trim($validated['type_name']);
 
         AssetType::create($validated);
-        return back()->with('success', 'Asset type added successfully.');
+
+        return redirect()->route('master-files.index')
+            ->with('active_tab', 'asset-types')
+            ->with('success', 'Asset type added successfully.');
     }
 
-    public function update(Request $request, AssetType $assetType)
+    /**
+     * Update the specified asset type.
+     */
+    public function update(Request $request, $id): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', 'unique:asset_types,name,' . $assetType->id],
+        $assetType = AssetType::findOrFail($id);
+
+        $validated = $request->validateWithBag('assetType', [
+            'type_name' => ['required', 'string', 'max:100', Rule::unique('asset_types', 'type_name')->ignore($assetType->id)],
+            'type_code' => ['required', 'string', 'max:10', Rule::unique('asset_types', 'type_code')->ignore($assetType->id)],
         ]);
 
+        $validated['type_code'] = strtoupper(trim($validated['type_code']));
+        $validated['type_name'] = trim($validated['type_name']);
+
         $assetType->update($validated);
-        return back()->with('success', 'Asset type updated successfully.');
+
+        return redirect()->route('master-files.index')
+            ->with('active_tab', 'asset-types')
+            ->with('success', 'Asset type updated successfully.');
     }
 
-    public function destroy(AssetType $assetType)
+    /**
+     * Remove the specified asset type if it has no dependent assets or sub types.
+     */
+    public function destroy($id): RedirectResponse
     {
-        // Safety Check: Do not delete if this type has subtypes linked to it.
-        if (AssetSubType::where('asset_type_id', $assetType->id)->exists()) {
-            return back()->withErrors(['error' => 'Cannot delete asset type: It contains active subtypes.']);
+        $assetType = AssetType::findOrFail($id);
+
+        $assetCount = $assetType->assets()->count();
+        $subTypeCount = $assetType->subTypes()->count();
+
+        if ($assetCount > 0 || $subTypeCount > 0) {
+            $messages = [];
+            if ($subTypeCount > 0) {
+                $messages[] = $subTypeCount . ' ' . ($subTypeCount === 1 ? 'sub type' : 'sub types');
+            }
+            if ($assetCount > 0) {
+                $messages[] = $assetCount . ' ' . ($assetCount === 1 ? 'asset' : 'assets');
+            }
+
+            return redirect()->route('master-files.index')
+                ->with('active_tab', 'asset-types')
+                ->with('error', 'Cannot delete asset type: it is still in use by ' . implode(' and ', $messages) . '.');
         }
 
         $assetType->delete();
-        return back()->with('success', 'Asset type deleted successfully.');
+
+        return redirect()->route('master-files.index')
+            ->with('active_tab', 'asset-types')
+            ->with('success', 'Asset type deleted successfully.');
     }
 }

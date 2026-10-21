@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\AssetTypeController;
 use App\Http\Controllers\AssetSubTypeController;
+use App\Http\Controllers\MasterFileController;
 
 
 /*
@@ -49,6 +50,12 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
     // NEW: allocate an asset to a branch or an employee (same permission as the registry)
     Route::post('/assets/{asset}/allocations', [AssetAllocationController::class, 'store'])->name('assets.allocate');
+
+    // Master files (Asset Types, Sub Types, Brands)
+    Route::get('/master-files', [MasterFileController::class, 'index'])->name('master-files.index');
+    Route::post('/asset-types', [AssetTypeController::class, 'store'])->name('asset-types.store');
+    Route::patch('/asset-types/{id}', [AssetTypeController::class, 'update'])->name('asset-types.update');
+    Route::delete('/asset-types/{id}', [AssetTypeController::class, 'destroy'])->name('asset-types.destroy');
 });
 
 //Depreciation report + useful-life settings (same permission as the registry)

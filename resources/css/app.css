@@ -576,3 +576,52 @@ a:hover {
     border: 1px solid #e2e8f0;
 }
 
+/* Master Files / Bootstrap Tabs */
+.nav-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    padding-left: 0;
+    margin-bottom: 1.5rem;
+    list-style: none;
+    border-bottom: 2px solid var(--border-color);
+    gap: 0.5rem;
+}
+
+.nav-tabs .nav-item {
+    margin-bottom: -2px;
+}
+
+.nav-tabs .nav-link {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.9375rem;
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--text-main);
+    border-bottom-color: var(--border-color);
+    text-decoration: none;
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+}
+
+.tab-content > .tab-pane {
+    display: none;
+}
+
+.tab-content > .tab-pane.active {
+    display: block;
+}
+
