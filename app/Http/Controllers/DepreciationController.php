@@ -47,11 +47,14 @@ class DepreciationController extends Controller
                 continue;
             }
 
+            $activeLayers = $asset->layers->whereNull('end_date');
+            $layersForDep = $activeLayers->isNotEmpty() ? $activeLayers : $asset->layers;
+
             $closingAsOf = $endDate && $endDate->lt($closingDate) ? $endDate : $closingDate;
             $openingAsOf = $endDate && $endDate->lt($yearStart) ? $endDate : $yearStart;
 
-            $opening = Depreciation::accumulated($asset->layers, $openingAsOf, (float) ($asset->residual_value ?? 0));
-            $closing = Depreciation::accumulated($asset->layers, $closingAsOf, (float) ($asset->residual_value ?? 0));
+            $opening = Depreciation::accumulated($layersForDep, $openingAsOf, (float) ($asset->residual_value ?? 0));
+            $closing = Depreciation::accumulated($layersForDep, $closingAsOf, (float) ($asset->residual_value ?? 0));
 
             $rows[] = (object) [
                 'asset' => $asset,
@@ -61,8 +64,8 @@ class DepreciationController extends Controller
                 'charge' => round($closing - $opening, 2),
                 'closing' => $closing,
                 'book_value' => round((float) $asset->cost - $closing, 2),
-                'life_years' => $asset->layers->whereNotNull('useful_life_months')->max('useful_life_months')
-                    ? round($asset->layers->whereNotNull('useful_life_months')->max('useful_life_months') / 12, 1)
+                'life_years' => $layersForDep->whereNotNull('useful_life_months')->max('useful_life_months')
+                    ? round($layersForDep->whereNotNull('useful_life_months')->max('useful_life_months') / 12, 1)
                     : null,
             ];
         }

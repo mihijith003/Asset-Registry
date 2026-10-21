@@ -204,7 +204,7 @@
                             <td class="text-right" style="font-weight: 500;" data-order="{{ $asset->cost }}">{{ number_format($asset->cost, 2) }}</td>
                             @php
                                 $accumulated = $asset->accumulatedDepreciation();
-                                $bookValue = round((float) $asset->cost - $accumulated, 2);
+                                $bookValue = $asset->netBookValue();
                             @endphp
                             <td class="text-right" data-order="{{ $accumulated }}">{{ number_format($accumulated, 2) }}</td>
                             <td class="text-right" style="font-weight: 500;" data-order="{{ $bookValue }}">{{ number_format($bookValue, 2) }}</td>

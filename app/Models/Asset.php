@@ -147,11 +147,14 @@ class Asset extends Model
 
     /**
      * NEW: accumulated depreciation as of a date (today by default).
+     * Excludes superseded depreciation layers (with end_date set) per IAS 16 elimination treatment.
      */
     public function accumulatedDepreciation(?\Illuminate\Support\Carbon $asOf = null): float
     {
+        $activeLayers = $this->layers->whereNull('end_date');
+
         return \App\Support\Depreciation::accumulated(
-            $this->layers,
+            $activeLayers,
             $asOf ?? \Illuminate\Support\Carbon::today(),
             (float) ($this->residual_value ?? 0)
         );
@@ -159,10 +162,14 @@ class Asset extends Model
 
     /**
      * NEW: net book value (cost less accumulated depreciation) as of a date (today by default).
+     * Excludes superseded depreciation layers (with end_date set).
      */
     public function netBookValue(?\Illuminate\Support\Carbon $asOf = null): float
     {
-        return round((float) $this->cost - $this->accumulatedDepreciation($asOf), 2);
+        $activeLayers = $this->layers->whereNull('end_date');
+        $costBasis = $activeLayers->isNotEmpty() ? (float) $activeLayers->sum('cost') : (float) $this->cost;
+
+        return round($costBasis - $this->accumulatedDepreciation($asOf), 2);
     }
 
     /**
