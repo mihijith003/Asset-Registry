@@ -19,7 +19,7 @@ class AssetSale extends Model
         'price',
         'payment_method',
         'authorized_by',
-        'comments', // NEW: notes from the person recording the sale
+        'comments', 
     ];
 
     /**

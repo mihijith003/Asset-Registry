@@ -182,7 +182,8 @@ class AssetModificationController extends Controller
         $toArray = fn ($layer) => [
             'source_asset_id' => $layer->source_asset_id,
             'cost' => (float) $layer->cost,
-            'start_date' => $layer->start_date->toDateString(),
+            'start_date' => $layer->start_date instanceof \DateTimeInterface ? $layer->start_date->format('Y-m-d') : (string) $layer->start_date,
+            'end_date' => $layer->end_date ? ($layer->end_date instanceof \DateTimeInterface ? $layer->end_date->format('Y-m-d') : (string) $layer->end_date) : null,
             'useful_life_months' => $layer->useful_life_months,
         ];
         $parentLayers = $parent->layers->map($toArray)->all();

@@ -13,8 +13,8 @@ class AssetDisposal extends Model
         'asset_id',
         'method',
         'disposal_date',
-        'authorized_by', // NEW: name of the admin who authorized the disposal
-        'comments', // NEW: notes from the person recording the disposal
+        'authorized_by', 
+        'comments', 
         'approval_status',
     ];
 

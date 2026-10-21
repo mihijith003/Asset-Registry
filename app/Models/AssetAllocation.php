@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-// NEW: one allocation of an asset to a branch or an employee (see the asset_allocations migration).
+
 class AssetAllocation extends Model
 {
     public const TYPES = [

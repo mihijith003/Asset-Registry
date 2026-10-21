@@ -37,9 +37,10 @@ class Depreciation
     /**
      * Accumulated depreciation of the given layers (models or arrays) as of a date.
      * When residual_value is provided (or resolved from the asset), it is apportioned
-     * across the active layers in proportion to each layer's cost, and depreciation stops
+     * across the layers in proportion to each layer's cost, and depreciation stops
      * once net book value reaches residual_value.
-     * Layers with end_date finished before or on $asOf are superseded and excluded.
+     * A layer depreciates from start_date and stops at end_date (if set); after end_date
+     * it accrues no further depreciation.
      */
     public static function accumulated(iterable $layers, Carbon $asOf, ?float $residualValue = null): float
     {
@@ -51,35 +52,29 @@ class Depreciation
 
         $asOfDate = $asOf->copy()->startOfDay();
 
-        // Filter active layers as of $asOfDate:
-        // Exclude layers that have not started yet (start_date > asOfDate)
-        // or that have already finished (end_date <= asOfDate).
-        $activeLayers = [];
+        // Filter layers that have started as of $asOfDate:
+        // Exclude layers that have not started yet (start_date > asOfDate).
+        $applicableLayers = [];
         foreach ($layerList as $layer) {
             $start = self::value($layer, 'start_date');
-            $end = self::value($layer, 'end_date');
 
             if ($start && Carbon::parse($start)->startOfDay()->gt($asOfDate)) {
                 continue; // Not yet started as of this date
             }
 
-            if ($end && Carbon::parse($end)->startOfDay()->lte($asOfDate)) {
-                continue; // Superseded / finished at or before this date
-            }
-
-            $activeLayers[] = $layer;
+            $applicableLayers[] = $layer;
         }
 
-        if (empty($activeLayers)) {
+        if (empty($applicableLayers)) {
             return 0.0;
         }
 
         if ($residualValue === null) {
-            $residualValue = self::resolveResidualValue($activeLayers);
+            $residualValue = self::resolveResidualValue($applicableLayers);
         }
 
         $totalCost = 0.0;
-        foreach ($activeLayers as $layer) {
+        foreach ($applicableLayers as $layer) {
             $cost = (float) self::value($layer, 'cost');
             if ($cost > 0) {
                 $totalCost += $cost;
@@ -95,7 +90,7 @@ class Depreciation
 
         $totalAccumulated = 0.0;
 
-        foreach ($activeLayers as $layer) {
+        foreach ($applicableLayers as $layer) {
             $cost = (float) self::value($layer, 'cost');
             $life = (int) self::value($layer, 'useful_life_months');
             $start = self::value($layer, 'start_date');
@@ -105,7 +100,7 @@ class Depreciation
                 continue; // no useful life set = not depreciated
             }
 
-            // If a layer has an end_date that occurs before $asOfDate, cap the period at end_date
+            // A layer depreciates from start_date and stops at end_date (if set)
             $effectiveEnd = ($end && Carbon::parse($end)->startOfDay()->lt($asOfDate))
                 ? Carbon::parse($end)->startOfDay()
                 : $asOfDate;

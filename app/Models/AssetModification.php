@@ -29,7 +29,7 @@ class AssetModification extends Model
 
     public const TYPES = ['upgrade', 'downgrade'];
 
-    // NEW: lets $mod->reverted_at be used as a date.
+    //lets $mod->reverted_at be used as a date.
     protected $casts = [
         'reverted_at' => 'datetime',
     ];
