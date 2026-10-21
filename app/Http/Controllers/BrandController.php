@@ -3,47 +3,74 @@
 namespace App\Http\Controllers;
 
 use App\Models\Brand;
-use App\Models\Asset;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-
+use Illuminate\Validation\Rule;
 
 class BrandController extends Controller
 {
-    public function index()
+    /**
+     * Store a newly created brand.
+     */
+    public function store(Request $request): RedirectResponse
     {
-        $brands = Brand::orderBy('name')->get();
-        return view('brands.index', compact('brands'));
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
+        $validated = $request->validateWithBag('brand', [
             'name' => ['required', 'string', 'max:100', 'unique:brands,name'],
         ]);
 
+        $validated['name'] = trim($validated['name']);
+
         Brand::create($validated);
-        return back()->with('success', 'Brand added successfully.');
+
+        return redirect()->route('master-files.index')
+            ->with('active_tab', 'brands')
+            ->with('success', 'Brand added successfully.');
     }
 
-    public function update(Request $request, Brand $brand)
+    /**
+     * Update the specified brand.
+     */
+    public function update(Request $request, $id): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:100', 'unique:brands,name,' . $brand->id],
+        $brand = Brand::findOrFail($id);
+
+        $validated = $request->validateWithBag('brand', [
+            'name' => ['required', 'string', 'max:100', Rule::unique('brands', 'name')->ignore($brand->id)],
         ]);
 
+        $validated['name'] = trim($validated['name']);
+
         $brand->update($validated);
-        return back()->with('success', 'Brand updated successfully.');
+
+        return redirect()->route('master-files.index')
+            ->with('active_tab', 'brands')
+            ->with('success', 'Brand updated successfully.');
     }
 
-    public function destroy(Brand $brand)
+    /**
+     * Remove the specified brand if no assets reference it.
+     */
+    public function destroy($id): RedirectResponse
     {
-        // Safety Check: Do not delete if assets are actively using this brand.
-        // Update 'brand_id' if your assets table uses a different column name for the foreign key.
-        if (Asset::where('brand_id', $brand->id)->exists()) {
-            return back()->withErrors(['error' => 'Cannot delete brand: It is currently assigned to one or more assets.']);
+        $brand = Brand::findOrFail($id);
+
+        // IMPORTANT: the brand_id foreign key on assets is ON DELETE SET NULL, not RESTRICT,
+        // so unlike types and sub types the database will not stop the delete — it would
+        // silently blank the brand on every asset using it. The controller check is the only guard.
+        $assetCount = $brand->assets()->count();
+
+        if ($assetCount > 0) {
+            $countLabel = $assetCount . ' ' . ($assetCount === 1 ? 'asset' : 'assets');
+
+            return redirect()->route('master-files.index')
+                ->with('active_tab', 'brands')
+                ->with('error', "Cannot delete brand: it is still in use by {$countLabel}.");
         }
 
         $brand->delete();
-        return back()->with('success', 'Brand deleted successfully.');
+
+        return redirect()->route('master-files.index')
+            ->with('active_tab', 'brands')
+            ->with('success', 'Brand deleted successfully.');
     }
 }

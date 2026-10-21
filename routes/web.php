@@ -59,6 +59,9 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::post('/asset-subtypes', [AssetSubTypeController::class, 'store'])->name('asset-subtypes.store');
     Route::patch('/asset-subtypes/{id}', [AssetSubTypeController::class, 'update'])->name('asset-subtypes.update');
     Route::delete('/asset-subtypes/{id}', [AssetSubTypeController::class, 'destroy'])->name('asset-subtypes.destroy');
+    Route::post('/brands', [BrandController::class, 'store'])->name('brands.store');
+    Route::patch('/brands/{id}', [BrandController::class, 'update'])->name('brands.update');
+    Route::delete('/brands/{id}', [BrandController::class, 'destroy'])->name('brands.destroy');
 });
 
 //Depreciation report + useful-life settings (same permission as the registry)
