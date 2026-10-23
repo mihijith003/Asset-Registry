@@ -172,6 +172,16 @@
                                         in {{ $asset->removalModification->reference }} ({{ $asset->removalModification->modification_date }}).
                                     </div>
                                 @endif
+                                @php
+                                    $revalPredecessor = $asset->supersedes ?? $asset->revaluationIn?->asset;
+                                @endphp
+                                @if ($revalPredecessor)
+                                    <div style="margin-top: 0.25rem;">
+                                        <a href="{{ route('asset-revaluations.index') }}" class="badge badge-secondary" style="text-decoration: none;">
+                                            Revalued from {{ $revalPredecessor->asset_code }}
+                                        </a>
+                                    </div>
+                                @endif
                                 @if ($asset->components->isNotEmpty())
                                     @if ($asset->isCombinationUndone())
                                         <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">

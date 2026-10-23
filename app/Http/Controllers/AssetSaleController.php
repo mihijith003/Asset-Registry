@@ -32,7 +32,7 @@ class AssetSaleController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')],
+            'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')->whereNull('superseded_by_asset_id')],
             'buyer_name' => ['required', 'string', 'max:150'],
             'buyer_contact' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],

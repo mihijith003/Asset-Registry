@@ -28,6 +28,7 @@ class DepreciationController extends Controller
         $rows = [];
         $assets = Asset::with(['layers', 'sale', 'disposal', 'assetType', 'subType'])
             ->whereNull('merged_into_asset_id')
+            ->whereNull('superseded_by_asset_id')
             ->orderBy('asset_code')
             ->get();
 

@@ -25,7 +25,11 @@
                                 class="form-select">
                             <option value="">-- Select Asset --</option>
                             @foreach ($assets as $asset)
-                                <option value="{{ $asset->id }}" {{ old('asset_id') == $asset->id ? 'selected' : '' }}>
+                                <option value="{{ $asset->id }}"
+                                        data-remaining-life="{{ $asset->remaining_life_months ?? '' }}"
+                                        data-start-date="{{ $asset->initial_start_date ?? '' }}"
+                                        data-life-months="{{ $asset->total_life_months ?? '' }}"
+                                        {{ old('asset_id') == $asset->id ? 'selected' : '' }}>
                                     {{ $asset->asset_code }} - {{ $asset->brand?->name ?? $asset->brand_name }} {{ $asset->model }}
                                 </option>
                             @endforeach
@@ -70,6 +74,27 @@
                         @enderror
                     </div>
 
+                    <!-- New Useful Life (months) -->
+                    <div class="form-group">
+                        <label for="new_useful_life_months" class="form-label">
+                            New Useful Life (months) <span class="required">*</span>
+                        </label>
+                        <input type="number"
+                               id="new_useful_life_months"
+                               name="new_useful_life_months"
+                               value="{{ old('new_useful_life_months') }}"
+                               min="1"
+                               max="600"
+                               step="1"
+                               required
+                               placeholder="e.g. 48"
+                               class="form-control">
+                        <small class="form-hint">Pre-filled with the selected asset's current remaining life.</small>
+                        @error('new_useful_life_months')
+                            <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     <!-- Reason -->
                     <div class="form-group">
                         <label for="reason" class="form-label">
@@ -109,6 +134,60 @@
 
             {{-- Asks for admin password when "Record Revaluation" is clicked --}}
             <x-admin-password-modal form="asset-revaluation-form" />
+
+            <script>
+                (function () {
+                    var assetSelect = document.getElementById('asset_id');
+                    var dateInput = document.getElementById('revaluation_date');
+                    var lifeInput = document.getElementById('new_useful_life_months');
+                    if (!assetSelect || !lifeInput) {
+                        return;
+                    }
+
+                    function completeMonthsBetween(startStr, endStr) {
+                        var s = startStr.split('-').map(Number);
+                        var e = endStr.split('-').map(Number);
+                        if (s.length !== 3 || e.length !== 3) {
+                            return 0;
+                        }
+                        var months = (e[0] - s[0]) * 12 + (e[1] - s[1]);
+                        if (e[2] < s[2]) {
+                            months -= 1;
+                        }
+                        return Math.max(0, months);
+                    }
+
+                    function updateRemainingLife() {
+                        var opt = assetSelect.options[assetSelect.selectedIndex];
+                        if (!opt || !opt.value) {
+                            lifeInput.value = '';
+                            return;
+                        }
+
+                        var startStr = opt.getAttribute('data-start-date');
+                        var totalLife = parseInt(opt.getAttribute('data-life-months'), 10);
+                        var fallbackRemaining = opt.getAttribute('data-remaining-life');
+
+                        if (startStr && !isNaN(totalLife) && totalLife > 0 && dateInput && dateInput.value) {
+                            var elapsed = completeMonthsBetween(startStr, dateInput.value);
+                            lifeInput.value = Math.max(1, totalLife - elapsed);
+                        } else if (fallbackRemaining) {
+                            lifeInput.value = fallbackRemaining;
+                        } else {
+                            lifeInput.value = '';
+                        }
+                    }
+
+                    assetSelect.addEventListener('change', updateRemainingLife);
+                    if (dateInput) {
+                        dateInput.addEventListener('change', function () {
+                            if (assetSelect.value) {
+                                updateRemainingLife();
+                            }
+                        });
+                    }
+                })();
+            </script>
         </div>
     </div>
 
@@ -130,8 +209,10 @@
                     <tr>
                         <th>Revaluation ID</th>
                         <th>Asset Code</th>
+                        <th>New Asset Code</th>
                         <th style="text-align: right;">Previous Value</th>
                         <th style="text-align: right;">Revalued Amount</th>
+                        <th style="text-align: center;">New Life</th>
                         <th>Reason</th>
                         <th>Authorized By</th>
                         <th>Revaluation Date</th>
@@ -152,11 +233,21 @@
                                     {{ $revaluation->asset?->brand?->name ?? ($revaluation->asset?->brand_name ?? '') }} {{ $revaluation->asset?->model ?? '' }}
                                 </div>
                             </td>
+                            <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
+                                {{ $revaluation->resultAsset?->asset_code ?? '-' }}
+                            </td>
                             <td style="text-align: right; font-weight: 500;" data-order="{{ $revaluation->previous_value }}">
                                 {{ number_format($revaluation->previous_value, 2) }}
                             </td>
                             <td style="text-align: right; font-weight: 500;" data-order="{{ $revaluation->revalued_amount }}">
                                 {{ number_format($revaluation->revalued_amount, 2) }}
+                            </td>
+                            <td style="text-align: center;">
+                                @if ($revaluation->new_useful_life_months)
+                                    <span class="badge badge-secondary">{{ $revaluation->new_useful_life_months }} mos</span>
+                                @else
+                                    -
+                                @endif
                             </td>
                             <td>
                                 {{ $revaluation->reason ?: '-' }}
@@ -175,4 +266,3 @@
         </div>
     </div>
 </x-app-layout>
-

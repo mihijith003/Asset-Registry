@@ -22,7 +22,7 @@ class AssetController extends Controller
     public function index(): View
     {
         // NEW: allocations (newest first = current + history); originAsset / removalModification trace removed components
-        $assets = Asset::with(['assetType', 'brand', 'components.brand', 'allocations', 'originAsset', 'removalModification.asset', 'layers', 'modifications'])
+        $assets = Asset::with(['assetType', 'brand', 'components.brand', 'allocations', 'originAsset', 'removalModification.asset', 'layers', 'modifications', 'supersedes', 'revaluationIn.asset'])
             ->active()
             ->orderByDesc('id')
             ->get(); 

@@ -29,6 +29,7 @@ class Asset extends Model
         'useful_life_months',
         'comments',
         'merged_into_asset_id', // NEW: set on the original assets once they are combined into a new asset
+        'superseded_by_asset_id', // NEW: set on the old asset when superseded by a revalued successor asset
         'origin_asset_id', // NEW: for a removed component, the asset it originally came with
     ];
 
@@ -55,12 +56,15 @@ class Asset extends Model
     }
 
     /**
-     * NEW: "active" assets - not sold, not disposed and not merged into a combined asset.
-     * Only these can be listed in the registry or used in a new sale/modification.
+     * NEW: "active" assets - not sold, not disposed, not merged into a combined asset, and not superseded by revaluation.
+     * Only these can be listed in the registry or used in a new sale/modification/revaluation.
      */
     public function scopeActive($query)
     {
-        return $query->doesntHave('sale')->doesntHave('disposal')->whereNull('merged_into_asset_id');
+        return $query->doesntHave('sale')
+            ->doesntHave('disposal')
+            ->whereNull('merged_into_asset_id')
+            ->whereNull('superseded_by_asset_id');
     }
 
     /**
@@ -246,6 +250,30 @@ class Asset extends Model
     public function revaluations()
     {
         return $this->hasMany(AssetRevaluation::class);
+    }
+
+    /**
+     * The successor asset created when this asset was revalued (null if not superseded).
+     */
+    public function supersededBy()
+    {
+        return $this->belongsTo(Asset::class, 'superseded_by_asset_id');
+    }
+
+    /**
+     * The predecessor asset that this asset superseded upon revaluation (null if not a revaluation successor).
+     */
+    public function supersedes()
+    {
+        return $this->hasOne(Asset::class, 'superseded_by_asset_id');
+    }
+
+    /**
+     * The revaluation event that created this successor asset (null if not created by a revaluation).
+     */
+    public function revaluationIn()
+    {
+        return $this->hasOne(AssetRevaluation::class, 'result_asset_id');
     }
 
     public function sale()
