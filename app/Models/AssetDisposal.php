@@ -10,16 +10,24 @@ class AssetDisposal extends Model
     use HasFactory;
 
     protected $fillable = [
-        'disposal_id',
         'asset_id',
         'method',
         'disposal_date',
-        'authorized_by', // NEW: name of the admin who authorized the disposal
-        'comments', // NEW: notes from the person recording the disposal
+        'authorized_by', 
+        'comments', 
+        'approval_status',
     ];
+
+    /**
+     * Display accessor that formats the id for humans (e.g. DIS-0001).
+     */
+    public function getReferenceAttribute(): string
+    {
+        return 'DIS-' . str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
+    }
 
     public function asset()
     {
-        return $this->belongsTo(Asset::class);
+        return $this->belongsTo(Asset::class)->withTrashed();
     }
 }

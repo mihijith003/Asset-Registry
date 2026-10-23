@@ -11,20 +11,25 @@ class AssetModification extends Model
 
     public $timestamps = false;
 
-    // CHANGED: added component_asset_id, result_asset_id and reverted_at (see the
-    // "combination tracking" migration).
-    // protected $fillable = [
-    //     'modification_id', 'asset_id', 'modification_date', 'removed_asset',
-    //     'added_asset', 'new_value', 'new_location', 'authorized_by'
-    // ];
     protected $fillable = [
-        'modification_id', 'asset_id', 'component_asset_id', 'result_asset_id', 'modification_date',
+        'asset_id', 'component_asset_id', 'result_asset_id', 'modification_date',
         'removed_asset', 'added_asset', 'new_value', 'new_location', 'authorized_by', 'reverted_at',
         'parent_original_cost', 'component_original_cost', // NEW: costs saved at combine time, restored on revert
         'comments', // NEW: notes from the person recording the modification
+        'modification_type', 'removed_asset_id', 'removed_price', // NEW: upgrade/downgrade + the removed component
     ];
 
-    // NEW: lets $mod->reverted_at be used as a date.
+    /**
+     * Display accessor that formats the id for humans (e.g. MOD-0001).
+     */
+    public function getReferenceAttribute(): string
+    {
+        return 'MOD-' . str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
+    }
+
+    public const TYPES = ['upgrade', 'downgrade'];
+
+    //lets $mod->reverted_at be used as a date.
     protected $casts = [
         'reverted_at' => 'datetime',
     ];

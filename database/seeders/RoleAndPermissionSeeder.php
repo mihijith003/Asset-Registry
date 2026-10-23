@@ -22,50 +22,33 @@ class RoleAndPermissionSeeder extends Seeder
         // 1. Define granular permissions for Asset Management
         $permissions = [
             // Asset Registry
-            'view assets',
-            'create assets',
-            'edit assets',
-            'delete assets',
+            'register assets',
+            'modify assets',
+            'sell assets',
+            'dispose assets',
 
-            // Asset Modifications
-            'view modifications',
-            'create modifications',
-
-            // Asset Sales
-            'view sales',
-            'create sales',
-
-            // Asset Disposals
-            'view disposals',
-            'create disposals',
         ];
 
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
         // 2. Create Roles and assign permissions
         
         // Admin Role (has full access)
-        $adminRole = Role::firstOrCreate(['name' => 'Admin']);
+        $adminRole = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
         $adminRole->syncPermissions(Permission::all());
 
         // Staff Role (operational access)
-        $staffRole = Role::firstOrCreate(['name' => 'Staff']);
+        $staffRole = Role::firstOrCreate(['name' => 'Staff', 'guard_name' => 'web']);
         $staffRole->syncPermissions([
-            'view assets',
-            'create assets',
-            'view modifications',
-            'create modifications',
-            'view sales',
-            'create sales',
-            'view disposals',
-            'create disposals',
+         'register assets',
+         'modify assets'
         ]);
 
         // 3. Create default test users if they don't exist
         $adminUser = User::firstOrCreate(
-            ['email' => 'admin@assetmgmt.com'],
+            ['email' => 'admin@gmail.com'],
             [
                 'name' => 'System Admin',
                 'password' => Hash::make('password123'),

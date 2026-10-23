@@ -4,34 +4,54 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Asset extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = [
         'asset_code',
         'asset_type_id',
         'asset_sub_type_id',
+        'brand_id',
         'brand_name',
         'model',
+        'purchase_date',
+        'supplier',
+        'po_reference',
+        'invoice_reference',
         'financial_year',
         'location',
         'cost',
+        'residual_value',
+        'useful_life_months',
+        'comments',
         'merged_into_asset_id', // NEW: set on the original assets once they are combined into a new asset
+        'origin_asset_id', // NEW: for a removed component, the asset it originally came with
+    ];
+
+    protected $casts = [
+        'purchase_date' => 'date',
     ];
 
     /**
-     * NEW: generate a unique asset code (same AST-YYYY-XXXXX format the registry uses).
+     * Generate a sequential asset code for a type and subtype combination: <type_code>-<sub_type_code>-<nnn>.
      */
-    public static function generateCode(): string
+    public static function generateCode(int $assetTypeId, int $assetSubTypeId): string
     {
-        do {
-            $code = 'AST-' . date('Y') . '-' . strtoupper(Str::random(5));
-        } while (static::where('asset_code', $code)->exists());
+        $type = AssetType::findOrFail($assetTypeId);
+        $subType = AssetSubType::findOrFail($assetSubTypeId);
 
-        return $code;
+        $count = static::withTrashed()
+            ->where('asset_type_id', $assetTypeId)
+            ->where('asset_sub_type_id', $assetSubTypeId)
+            ->count();
+
+        $number = str_pad((string) ($count + 1), 3, '0', STR_PAD_LEFT);
+
+        return "{$type->type_code}-{$subType->sub_type_code}-{$number}";
     }
 
     /**
@@ -52,20 +72,36 @@ class Asset extends Model
     }
 
     /**
+     * Whether this asset's combination was undone by a later modification (via the revive path).
+     */
+    public function isCombinationUndone(): bool
+    {
+        if ($this->components->isEmpty()) {
+            return false;
+        }
+
+        $producedAssetIds = $this->modifications->pluck('result_asset_id')->filter()->all();
+        if (empty($producedAssetIds)) {
+            return false;
+        }
+
+        return $this->components->contains(fn ($component) => in_array($component->id, $producedAssetIds, true));
+    }
+
+    /**
+     * Whether this asset is currently an active combined asset.
+     */
+    public function isCurrentlyCombined(): bool
+    {
+        return $this->components->isNotEmpty() && ! $this->isCombinationUndone();
+    }
+
+    /**
      * NEW: the combined asset this asset was merged into (null if it has not been merged).
      */
     public function mergedInto()
     {
         return $this->belongsTo(Asset::class, 'merged_into_asset_id');
-    }
-
-    protected static function booted()
-    {
-        static::creating(function ($asset) {
-            if (empty($asset->asset_code)) {
-                $asset->asset_code = 'AST-' . strtoupper(Str::random(6));
-            }
-        });
     }
 
     public function assetType()
@@ -79,6 +115,92 @@ class Asset extends Model
     public function subType()
     {
         return $this->belongsTo(AssetSubType::class, 'asset_sub_type_id');
+    }
+
+    public function brand()
+    {
+        return $this->belongsTo(Brand::class);
+    }
+
+    /**
+     * NEW: the layers of cost this asset's depreciation is calculated from.
+     */
+    public function layers()
+    {
+        return $this->hasMany(AssetDepreciationLayer::class)->orderBy('start_date');
+    }
+
+    /**
+     * NEW: one layer for a newly registered asset, starting today (or on purchase date), with the asset's custom useful life or its sub type's default.
+     */
+    public function addInitialLayer(): void
+    {
+        $years = $this->subType?->useful_life_years;
+
+        $this->layers()->create([
+            'source_asset_id' => $this->id,
+            'cost' => $this->cost,
+            'start_date' => $this->purchase_date ? $this->purchase_date->toDateString() : now()->toDateString(),
+            'useful_life_months' => $this->useful_life_months ?? ($years ? $years * 12 : null),
+        ]);
+    }
+
+    /**
+     * NEW: accumulated depreciation as of a date (today by default).
+     * Excludes superseded depreciation layers (with end_date set) per IAS 16 elimination treatment.
+     */
+    public function accumulatedDepreciation(?\Illuminate\Support\Carbon $asOf = null): float
+    {
+        $activeLayers = $this->layers->whereNull('end_date');
+
+        return \App\Support\Depreciation::accumulated(
+            $activeLayers,
+            $asOf ?? \Illuminate\Support\Carbon::today(),
+            (float) ($this->residual_value ?? 0)
+        );
+    }
+
+    /**
+     * NEW: net book value (cost less accumulated depreciation) as of a date (today by default).
+     * Excludes superseded depreciation layers (with end_date set).
+     */
+    public function netBookValue(?\Illuminate\Support\Carbon $asOf = null): float
+    {
+        $activeLayers = $this->layers->whereNull('end_date');
+        $costBasis = $activeLayers->isNotEmpty() ? (float) $activeLayers->sum('cost') : (float) $this->cost;
+
+        return round($costBasis - $this->accumulatedDepreciation($asOf), 2);
+    }
+
+    /**
+     * NEW: for a component removed from another asset, the asset it originally came with (null otherwise).
+     */
+    public function originAsset()
+    {
+        return $this->belongsTo(Asset::class, 'origin_asset_id');
+    }
+
+    /**
+     * NEW: the modification in which this asset was removed from another asset (null if it never was).
+     */
+    public function removalModification()
+    {
+        return $this->hasOne(AssetModification::class, 'removed_asset_id')->latestOfMany('id');
+    }
+
+    /**
+     * NEW: ids of every asset this asset was combined from, however many modifications deep.
+     */
+    public function descendantIds(): array
+    {
+        $ids = [];
+
+        foreach ($this->components as $part) {
+            $ids[] = $part->id;
+            $ids = array_merge($ids, $part->descendantIds());
+        }
+
+        return $ids;
     }
 
     /**
@@ -119,6 +241,11 @@ class Asset extends Model
     public function disposals()
     {
         return $this->hasMany(AssetDisposal::class);
+    }
+
+    public function revaluations()
+    {
+        return $this->hasMany(AssetRevaluation::class);
     }
 
     public function sale()

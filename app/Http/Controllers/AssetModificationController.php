@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asset;
-// use App\Models\AssetDisposal; // CHANGED: a modification is no longer recorded as a disposal.
 use App\Models\AssetModification;
-use App\Support\AdminAuthorization; // NEW: admin-password check
+use App\Models\AssetSubType;
+use App\Support\AdminAuthorization; // admin-password check
+use App\Support\Depreciation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use App\Models\ActivityLog;
 
 class AssetModificationController extends Controller
 {
@@ -19,19 +22,9 @@ class AssetModificationController extends Controller
      */
     public function index(): View
     {
-        // CHANGED: the form data now comes from formData() (active assets + revert options).
-        // $modifications = AssetModification::with('asset')
-        //     ->orderByDesc('id')
-        //     ->paginate(10);
-        //
-        // $assets = Asset::orderBy('asset_code')->get();
-        // $components = Asset::doesntHave('sale')->doesntHave('disposal')->get();
-        //
-        // return view('asset-modifications.index', compact('modifications', 'assets', 'components'));
-
-        $modifications = AssetModification::with(['asset', 'resultAsset']) // CHANGED: also load the combined asset
+        $modifications = AssetModification::with(['asset', 'resultAsset'])
             ->orderByDesc('id')
-            ->get(); // CHANGED: DataTables does the paging/search/sort in the browser
+            ->get(); // DataTables does the paging/search/sort in the browser
 
         return view('asset-modifications.index', ['modifications' => $modifications] + $this->formData());
     }
@@ -41,80 +34,83 @@ class AssetModificationController extends Controller
      */
     public function create(): View
     {
-        // CHANGED: uses formData() like index().
-        // $components = Asset::doesntHave('sale')->doesntHave('disposal')->get();
-        // $assets = Asset::orderBy('asset_code')->get();
-        //
-        // return view('asset-modifications.index', compact('assets', 'components'));
-
         return view('asset-modifications.index', $this->formData());
     }
 
     /**
-     * NEW: data for the modification form.
+     * Data for the modification form.
      *
      *  - $assets / $components: only ACTIVE assets (not sold, not disposed, not already merged away).
-     *    This includes combined assets (e.g. ID 003) so they can be modified again or reverted.
-     *  - $revertOptions: for each combined asset, the component(s) that were added to it, so the
-     *    "Removed Asset / Component" dropdown can show them (keyed by combined asset id).
+     *    Components removed by an earlier modification are normal registry assets, so they appear here too.
+     *  - $partOptions: for each asset that was made by combining earlier assets, those original parts, so one
+     *    of them can be picked as the "removed component" (it is then restored to the registry).
+     *  - $assetSubTypes: for describing a removed component that is not one of those parts.
      */
     private function formData(): array
     {
-        $assets = Asset::active()->orderBy('asset_code')->get();
+        $assets = Asset::active()->with('components')->orderBy('asset_code')->get();
         $components = $assets;
 
-        $revertOptions = AssetModification::with('componentAsset')
-            ->whereNotNull('result_asset_id')
-            ->whereNull('reverted_at')
-            ->get()
-            ->filter(fn ($mod) => $mod->componentAsset) // skip rows whose component no longer exists
-            ->groupBy('result_asset_id')
-            ->map(fn ($mods) => $mods->map(fn ($mod) => [
-                'id' => $mod->component_asset_id,
-                'label' => trim($mod->componentAsset->asset_code . ' - ' . $mod->componentAsset->brand_name . ' ' . $mod->componentAsset->model),
-            ])->values());
+        $partOptions = $assets
+            ->filter(fn ($asset) => $asset->components->isNotEmpty())
+            ->mapWithKeys(fn ($asset) => [
+                $asset->id => $asset->components->map(fn ($part) => [
+                    'id' => $part->id,
+                    'label' => trim($part->asset_code . ' - ' . $part->brand_name . ' ' . $part->model),
+                    'cost' => (float) $part->cost,
+                ])->values(),
+            ]);
 
-        return compact('assets', 'components', 'revertOptions');
+        $assetSubTypes = AssetSubType::orderBy('sub_type_name')->get();
+
+        return compact('assets', 'components', 'partOptions', 'assetSubTypes');
     }
 
     /**
      * Store a newly created asset modification in storage.
      *
-     * NEW behaviour:
-     *  - If a "removed asset" is chosen, the modification of the selected combined asset is REVERTED.
-     *  - Otherwise the selected asset and the modification item are COMBINED into a brand-new asset.
+     * The selected asset and the added component are COMBINED into a brand-new asset. If a component is
+     * removed during the modification, it goes back into the registry as an asset of its own (with the price
+     * entered), so it can be used in future modifications.
      */
     public function store(Request $request): RedirectResponse
     {
-        // CHANGED: component_asset_id is only required when not reverting; the free-text
-        // "removed_asset" input became a dropdown (removed_asset_id).
-        // $validated = $request->validate([
-        //     'modification_id' => ['required', 'string', 'max:50', 'unique:asset_modifications,modification_id'],
-        //     'asset_id' => ['required', 'exists:assets,id'],
-        //     'component_asset_id' => ['required', 'exists:assets,id'],
-        //     'modification_date' => ['required', 'date'],
-        //     'removed_asset' => ['nullable', 'string', 'max:150'],
-        //     'new_value' => ['nullable', 'numeric', 'min:0'],
-        //     'new_location' => ['nullable', 'string', 'max:100'],
-        //     // CHANGED: the free-text "authorized_by" input was removed from the form.
-        //     // 'authorized_by' => ['nullable', 'string', 'max:150'],
-        //     // NEW: an Admin password must now be supplied (via the popup on "Record Modification").
-        //     'admin_password' => ['required', 'string'],
-        // ]);
         $validated = $request->validate([
-            'modification_id' => ['required', 'string', 'max:50', 'unique:asset_modifications,modification_id'],
+            'modification_type' => ['required', Rule::in(AssetModification::TYPES)],
             'asset_id' => ['required', 'exists:assets,id'],
-            'component_asset_id' => ['required_without:removed_asset_id', 'nullable', 'exists:assets,id', 'different:asset_id'],
-            'removed_asset_id' => ['nullable', 'exists:assets,id'],
+            // The component that goes in. It is always required: even when a part is removed, a new one takes its place.
+            'component_asset_id' => ['required', 'exists:assets,id', 'different:asset_id'],
             'modification_date' => ['required', 'date'],
-            'new_value' => ['nullable', 'numeric', 'min:0'],
-            'new_location' => ['nullable', 'string', 'max:100'],
-            'comments' => ['nullable', 'string', 'max:1000'], // NEW: optional notes
-            // CHANGED: the free-text "authorized_by" input was removed from the form.
+            'comments' => ['nullable', 'string', 'max:1000'],
+
+            // The component that comes out (optional): '' = none, 'new' = typed in below, or the id of one of the
+            // asset's original parts.
+            'removed_part' => ['nullable', 'string', 'max:20'],
+            'removed_price' => ['nullable', 'required_with:removed_part', 'numeric', 'min:0'],
+            'removed_brand' => ['nullable', 'string', 'max:100'],
+            'removed_model' => ['nullable', 'string', 'max:100'],
+            'removed_asset_sub_type_id' => ['nullable', 'exists:asset_sub_types,id'],
+
+            // For a typed-in component: the asset (or one of its original parts) it originally came with.
+            'removed_origin_asset_id' => ['nullable', 'exists:assets,id'],
+
             'admin_password' => ['required', 'string'],
         ]);
 
-        // NEW: verify the password against the Admin users before touching any data.
+        // Check the typed-in removed component before asking for / checking the password.
+        if (($validated['removed_part'] ?? null) === 'new'
+            && empty($validated['removed_brand']) && empty($validated['removed_model'])) {
+            return back()->withInput($request->except('admin_password'))
+                ->withErrors(['removed_brand' => 'Enter the brand or model of the removed component.']);
+        }
+
+        if (($validated['removed_part'] ?? null) !== null
+            && $validated['removed_part'] !== 'new' && ! ctype_digit($validated['removed_part'])) {
+            return back()->withInput($request->except('admin_password'))
+                ->withErrors(['removed_part' => 'Select a valid removed component.']);
+        }
+
+        // Verify the password against the Admin users before touching any data.
         $admin = AdminAuthorization::findAdminByPassword($validated['admin_password']);
 
         if (! $admin) {
@@ -123,16 +119,15 @@ class AssetModificationController extends Controller
                 ->withErrors(['admin_password' => 'Incorrect admin password. The modification was not recorded.']);
         }
 
-        // NEW: the password itself must never be saved, and the authorizer is the matched admin.
+        // The password itself must never be saved, and the authorizer is the matched admin.
         unset($validated['admin_password']);
         $validated['authorized_by'] = $admin->name;
 
-        // NEW: revert when a removed asset was chosen, otherwise combine the two assets.
-        $isRevert = ! empty($validated['removed_asset_id']);
-
         $error = null;
-        DB::transaction(function () use ($validated, $isRevert, &$error) {
-            $error = $isRevert ? $this->revert($validated) : $this->combine($validated);
+        $type = null;
+        $restoredCode = null;
+        DB::transaction(function () use ($validated, &$error, &$type, &$restoredCode) {
+            [$error, $type, $restoredCode] = $this->modify($validated) + [null, null, null];
         });
 
         if ($error) {
@@ -140,56 +135,187 @@ class AssetModificationController extends Controller
             return back()->withInput($request->except('admin_password'))->withErrors(['asset_id' => $error]);
         }
 
+        \App\Models\ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'Asset Modified',
+            'description' => "Modification recorded for Parent Asset ID: " . $validated['asset_id'],
+            'status' => 1,
+        ]);
+
         return redirect()->route('asset-modifications.index')->with(
             'success',
-            $isRevert
-                ? 'Modification reverted. The original assets were restored to the registry.'
-                : 'Asset modification recorded. The assets were combined into a new asset.'
+            'Asset modification recorded (' . strtolower($type) . '). '
+                . ($restoredCode
+                    ? 'This undid an earlier modification, so the original asset ' . $restoredCode . ' is back in the registry under its original code'
+                    : 'The assets were combined into a new asset')
+                . (! empty($validated['removed_part']) ? ' and the removed component was returned to the registry.' : '.')
         );
     }
 
     /**
-     * NEW: combine two assets (e.g. CPU 001 + motherboard 002) into a NEW asset (003).
-     * The two originals are kept but hidden from the registry (merged_into_asset_id).
+     * Combine the asset with the added component into a NEW asset, and register the removed component (if any).
+     * The originals are kept but hidden from the registry (merged_into_asset_id).
      *
-     * @return string|null  an error message, or null on success
+     * @return array{0: string|null, 1: string|null}  [error message or null, modification type]
      */
-    private function combine(array $data): ?string
+    private function modify(array $data): array
     {
         $parent = Asset::active()->find($data['asset_id']);
         $component = Asset::active()->find($data['component_asset_id']);
 
         if (! $parent || ! $component) {
-            return 'Both assets must be active (not sold, disposed or already combined).';
+            return ['Both assets must be active (not sold, disposed or already combined).', null];
         }
 
-        // Combined cost = cost of both originals. The originals' own costs are NOT changed,
-        // which is what makes a later revert exact.
-        $totalCost = round((float) $parent->cost + (float) $component->cost, 2);
+        $removedPart = $data['removed_part'] ?? null;
+        $removedPrice = $removedPart ? round((float) $data['removed_price'], 2) : 0.0;
 
-        // Brand / model of the new asset describe both parts, e.g. "ASUS + Gigabyte".
-        $brand = Str::limit(implode(' + ', array_filter([$parent->brand_name, $component->brand_name])), 100, '');
-        $model = Str::limit(implode(' + ', array_filter([$parent->model, $component->model])), 100, '');
+        if ($removedPrice > (float) $parent->cost) {
+            return ['The removed component cannot cost more than the asset it is removed from (' . number_format($parent->cost, 2) . ').', null];
+        }
 
-        // The new asset gets a brand-new asset code and is registered like any other asset.
-        $combined = Asset::create([
-            'asset_code' => Asset::generateCode(),
-            'asset_type_id' => $parent->asset_type_id,
-            'asset_sub_type_id' => $parent->asset_sub_type_id,
-            'brand_name' => $brand ?: null,
-            'model' => $model ?: null,
-            'financial_year' => $parent->financial_year,
-            'location' => ($data['new_location'] ?? null) ?: $parent->location,
-            'cost' => $totalCost,
-        ]);
+        // The asset's current allocation is carried over to the new assets.
+        $allocation = $parent->currentAllocation;
 
-        // NEW: the combined asset stays where the parent asset was allocated, unless a new location
-        // was typed in the form (that text is then shown as its location instead).
-        $parentAllocation = $parent->currentAllocation;
-        if ($parentAllocation && empty($data['new_location'])) {
+        // Depreciation: each asset's cost is held in layers that keep their own start date and life, so assets that
+        // were registered on different dates keep their own age when they are combined (see App\Support\Depreciation).
+        $toArray = fn ($layer) => [
+            'source_asset_id' => $layer->source_asset_id,
+            'cost' => (float) $layer->cost,
+            'start_date' => $layer->start_date instanceof \DateTimeInterface ? $layer->start_date->format('Y-m-d') : (string) $layer->start_date,
+            'end_date' => $layer->end_date ? ($layer->end_date instanceof \DateTimeInterface ? $layer->end_date->format('Y-m-d') : (string) $layer->end_date) : null,
+            'useful_life_months' => $layer->useful_life_months,
+        ];
+        $parentLayers = $parent->layers->map($toArray)->all();
+        $componentLayers = $component->layers->map($toArray)->all();
+
+        // 1. The removed component goes back into the registry as an asset of its own.
+        $removed = null;
+        if ($removedPart === 'new') {
+            // It originally came with the asset itself, or with one of the parts that asset was made from.
+            $originId = ! empty($data['removed_origin_asset_id']) ? (int) $data['removed_origin_asset_id'] : $parent->id;
+
+            if ($originId !== $parent->id && ! in_array($originId, $parent->descendantIds(), true)) {
+                return ['The selected "originally came with" asset is not part of the selected asset.', null];
+            }
+
+            $subType = ! empty($data['removed_asset_sub_type_id']) ? AssetSubType::find($data['removed_asset_sub_type_id']) : null;
+            $typeId = $subType?->asset_type_id ?? $parent->asset_type_id;
+            $subTypeId = $subType?->id ?? $parent->asset_sub_type_id;
+
+            $removed = Asset::create([
+                'asset_code' => Asset::generateCode((int) $typeId, (int) $subTypeId),
+                'asset_type_id' => $typeId,
+                'asset_sub_type_id' => $subTypeId,
+                'brand_name' => $data['removed_brand'] ?? null,
+                'model' => $data['removed_model'] ?? null,
+                'financial_year' => $parent->financial_year,
+                'location' => null,
+                'cost' => $removedPrice,
+                'origin_asset_id' => $originId, // trace the component back to the asset it came with
+            ]);
+
+            // It was part of the asset (or of the part it came with), so its cost is taken out of that part's layers
+            // and keeps their start dates. Its own sub type decides how long it lasts, when that is set.
+            $prefer = $originId === $parent->id ? null : array_merge([$originId], Asset::find($originId)->descendantIds());
+            [$removedLayers, $parentLayers] = Depreciation::slice($parentLayers, $removedPrice, $prefer);
+
+            $ownMonths = $subType?->useful_life_years ? $subType->useful_life_years * 12 : null;
+            foreach ($removedLayers as $layer) {
+                $removed->layers()->create([
+                    'source_asset_id' => $removed->id,
+                    'cost' => $layer['cost'],
+                    'start_date' => $layer['start_date'],
+                    'useful_life_months' => $ownMonths ?? $layer['useful_life_months'],
+                ]);
+            }
+        } elseif ($removedPart !== null) {
+            // One of the original parts the asset was made from: restore it to the registry at the entered price.
+            $removed = Asset::where('id', $removedPart)->where('merged_into_asset_id', $parent->id)->first();
+
+            if (! $removed) {
+                return ['The selected component is not part of the selected asset.', null];
+            }
+
+            $removed->merged_into_asset_id = null;
+            $removed->cost = $removedPrice;
+            $removed->save();
+
+            // Its cost is taken out of the parent's layers (its own first) and its layers are rebuilt from that,
+            // so it keeps its original start date(s) at the price entered.
+            [$removedLayers, $parentLayers] = Depreciation::slice(
+                $parentLayers,
+                $removedPrice,
+                array_merge([$removed->id], $removed->descendantIds())
+            );
+
+            $removed->layers()->delete();
+            foreach ($removedLayers as $layer) {
+                $removed->layers()->create($layer);
+            }
+        }
+
+        if ($removed && $allocation) {
+            $removed->allocations()->create([
+                'allocation_type' => $allocation->allocation_type,
+                'allocated_to' => $allocation->allocated_to,
+                'allocated_by' => $data['authorized_by'],
+            ]);
+        }
+
+        // 2. The new combined asset. Cost = asset - removed component + added component.
+        $totalCost = round((float) $parent->cost - $removedPrice + (float) $component->cost, 2);
+
+        // Brand / model describe the parts, e.g. "ASUS + Gigabyte" (the removed part's name is taken out).
+        $brand = $this->joinNames($parent->brand_name, $component->brand_name, $removed?->brand_name ?? ($data['removed_brand'] ?? null));
+        $model = $this->joinNames($parent->model, $component->model, $removed?->model ?? ($data['removed_model'] ?? null));
+
+        // Undoing an earlier modification: this asset is the result of modification M, the part being removed now is the
+        // one that replaced a component in M, and the component being added now is the one M removed. The result is then
+        // the asset M started from, so that asset gets its ORIGINAL id back instead of a new one being created.
+        $original = null;
+        if ($removedPart !== null && $removedPart !== 'new') {
+            $earlier = AssetModification::where('removed_asset_id', $component->id)->orderByDesc('id')->first();
+
+            if ($earlier
+                && (int) $earlier->result_asset_id === (int) $parent->id
+                && (int) $earlier->component_asset_id === (int) $removedPart) {
+                $candidate = Asset::find($earlier->asset_id);
+
+                if ($candidate && (int) $candidate->merged_into_asset_id === (int) $parent->id) {
+                    $original = $candidate;
+                }
+            }
+        }
+
+        if ($original) {
+            $combined = $original;
+            $combined->merged_into_asset_id = null; // back in the registry under its original code
+            $combined->cost = $totalCost;
+            $combined->save();
+            $combined->layers()->delete();
+        } else {
+            $combined = Asset::create([
+                'asset_code' => Asset::generateCode((int) $parent->asset_type_id, (int) $parent->asset_sub_type_id),
+                'asset_type_id' => $parent->asset_type_id,
+                'asset_sub_type_id' => $parent->asset_sub_type_id,
+                'brand_name' => $brand ?: null,
+                'model' => $model ?: null,
+                'financial_year' => $parent->financial_year,
+                'location' => $parent->location,
+                'cost' => $totalCost,
+            ]);
+        }
+
+        // The combined asset's layers: what is left of the asset plus the added component, each with its own start date.
+        foreach (array_merge($parentLayers, $componentLayers) as $layer) {
+            $combined->layers()->create($layer);
+        }
+
+        if ($allocation) {
             $combined->allocations()->create([
-                'allocation_type' => $parentAllocation->allocation_type,
-                'allocated_to' => $parentAllocation->allocated_to,
+                'allocation_type' => $allocation->allocation_type,
+                'allocated_to' => $allocation->allocated_to,
                 'allocated_by' => $data['authorized_by'],
             ]);
         }
@@ -198,127 +324,49 @@ class AssetModificationController extends Controller
         $parent->update(['merged_into_asset_id' => $combined->id]);
         $component->update(['merged_into_asset_id' => $combined->id]);
 
-        // History row. component_asset_id / result_asset_id are what a later revert uses.
+        $type = $data['modification_type'];
+
         AssetModification::create([
-            'modification_id' => $data['modification_id'],
             'asset_id' => $parent->id,
             'component_asset_id' => $component->id,
             'result_asset_id' => $combined->id,
             'modification_date' => $data['modification_date'],
+            'modification_type' => $type,
+            'removed_asset' => $removed ? trim($removed->asset_code . ' - ' . trim($removed->brand_name . ' ' . $removed->model)) : null,
+            'removed_asset_id' => $removed?->id,
+            'removed_price' => $removed ? $removedPrice : null,
             'added_asset' => trim($component->asset_code . ' - ' . ($component->brand_name ?? '')),
             'new_value' => $totalCost,
-            'new_location' => $data['new_location'] ?? null,
+            'new_location' => null,
             'authorized_by' => $data['authorized_by'],
-            // NEW: save each original's price so a revert can put them back exactly.
             'parent_original_cost' => $parent->cost,
             'component_original_cost' => $component->cost,
             'comments' => $data['comments'] ?? null,
         ]);
 
-        return null;
+        return [null, $type, $original?->asset_code];
     }
 
     /**
-     * NEW: revert a modification. $data['asset_id'] is the combined asset (003) and
-     * $data['removed_asset_id'] the component that was added to it (002). The combined asset
-     * is deleted and both originals (001, 002) are restored to the registry.
-     *
-     * @return string|null  an error message, or null on success
+     * "ASUS + Gigabyte" from the parent and added names, with the removed part's name taken out of the parent's.
      */
-    private function revert(array $data): ?string
+    private function joinNames(?string $parent, ?string $added, ?string $removed): string
     {
-        $combined = Asset::active()->find($data['asset_id']);
+        $parts = $parent ? explode(' + ', $parent) : [];
 
-        if (! $combined) {
-            return 'The selected asset is not active, so its modification cannot be reverted.';
+        if ($removed) {
+            foreach ($parts as $i => $part) {
+                if (strcasecmp(trim($part), trim($removed)) === 0) {
+                    unset($parts[$i]);
+                    break;
+                }
+            }
         }
 
-        $modification = AssetModification::where('result_asset_id', $combined->id)
-            ->where('component_asset_id', $data['removed_asset_id'])
-            ->whereNull('reverted_at')
-            ->first();
-
-        if (! $modification) {
-            return 'That item was not added to the selected asset, so there is nothing to revert.';
+        if ($added) {
+            $parts[] = $added;
         }
 
-        $parent = Asset::find($modification->asset_id);
-        $component = Asset::find($modification->component_asset_id);
-
-        if (! $parent || ! $component) {
-            return 'The original assets could not be found, so the modification cannot be reverted.';
-        }
-
-        // Put the originals back in the registry.
-        // CHANGED: their prices are now also explicitly restored to the values saved when they were
-        // combined (e.g. 100000 and 10000), instead of assuming nothing touched them meanwhile.
-        // Modifications made before the saved costs existed have null and keep the current price.
-        // $parent->update(['merged_into_asset_id' => null]);
-        // $component->update(['merged_into_asset_id' => null]);
-        $parent->merged_into_asset_id = null;
-        if ($modification->parent_original_cost !== null) {
-            $parent->cost = $modification->parent_original_cost;
-        }
-        $parent->save();
-
-        $component->merged_into_asset_id = null;
-        if ($modification->component_original_cost !== null) {
-            $component->cost = $modification->component_original_cost;
-        }
-        $component->save();
-
-        // Mark the original modification as reverted and log the revert as its own history row.
-        // result_asset_id is cleared because that asset is about to be deleted; leaving it would
-        // point at a missing (or, if the id were ever reused, an unrelated) asset.
-        $modification->update(['reverted_at' => now(), 'result_asset_id' => null]);
-
-        AssetModification::create([
-            'modification_id' => $data['modification_id'],
-            'asset_id' => $parent->id,
-            'modification_date' => $data['modification_date'],
-            'removed_asset' => trim($component->asset_code . ' - ' . ($component->brand_name ?? '')),
-            'new_value' => $parent->cost,
-            'new_location' => $data['new_location'] ?? null,
-            'authorized_by' => $data['authorized_by'],
-            'comments' => $data['comments'] ?? null,
-        ]);
-
-        // Finally remove the combined asset from the registry.
-        $combined->delete();
-
-        return null;
+        return Str::limit(implode(' + ', array_filter($parts)), 100, '');
     }
-
-    // CHANGED: the old store() body, kept for reference. It added the component's cost onto the
-    // parent asset and recorded the component as a DISPOSAL ("Merged into Asset ID: x").
-    //
-    //     DB::transaction(function () use ($validated) {
-    //         $parentAsset = Asset::findOrFail($validated['asset_id']);
-    //         $componentAsset = Asset::findOrFail($validated['component_asset_id']);
-    //
-    //         //Calculate the new total cost
-    //         $newTotalCost = $parentAsset->cost + $componentAsset->cost;
-    //
-    //         // 3. Update the validated array with the new values BEFORE creating the modification log
-    //         $validated['added_asset'] = trim($componentAsset->asset_code . ' - ' . ($componentAsset->brand_name ?? ''));
-    //         $validated['new_value'] = $newTotalCost;
-    //
-    //         AssetModification::create($validated);
-    //
-    //         $parentAsset = Asset::findOrFail($validated['asset_id']);
-    //         $componentAsset = Asset::findOrFail($validated['component_asset_id']);
-    //
-    //         $parentAsset->cost += $componentAsset->cost;
-    //         $parentAsset->save();
-    //
-    //         AssetDisposal::create([
-    //             'disposal_id' => 'DISP-MOD-' . $componentAsset->id . '-' . strtoupper(Str::random(6)),
-    //             'asset_id' => $componentAsset->id,
-    //             'method' => 'Merged into Asset ID: ' . $parentAsset->id,
-    //             'disposal_date' => now()->toDateString(),
-    //             'authorized_by' => $validated['authorized_by'],
-    //         ]);
-    //     });
-    //
-    //     return redirect()->route('asset-modifications.index')->with('success', 'Asset modification recorded successfully.');
 }

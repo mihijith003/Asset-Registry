@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Asset;
 use App\Models\AssetType;
+use App\Models\Brand;
+use App\Support\Depreciation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AssetController extends Controller
@@ -16,22 +21,21 @@ class AssetController extends Controller
      */
     public function index(): View
     {
-        // CHANGED: uses the active() scope (also hides assets merged into a combined asset) and
-        // loads "components" so combined assets can show what they were made from.
-        // $assets = Asset::with('assetType')
-        //     ->doesntHave('sale')
-        //     ->doesntHave('disposal')
-        //     ->orderByDesc('id')
-        //     ->paginate(10);
-        $assets = Asset::with(['assetType', 'components', 'allocations']) // NEW: allocations (newest first = current + history)
+        // NEW: allocations (newest first = current + history); originAsset / removalModification trace removed components
+        $assets = Asset::with(['assetType', 'brand', 'components.brand', 'allocations', 'originAsset', 'removalModification.asset', 'layers', 'modifications'])
             ->active()
             ->orderByDesc('id')
-            ->get(); // CHANGED: DataTables does the paging/search/sort in the browser
+            ->get(); 
 
         $assetTypes = AssetType::orderBy('type_name')->get();
         $assetSubTypes = \App\Models\AssetSubType::all();
+        $brands = Brand::orderBy('name')->get();
 
-        return view('assets.index', compact('assets', 'assetTypes', 'assetSubTypes'));
+        // Dropdown of financial years, and the figures for the depreciation columns
+        $financialYears = Depreciation::financialYearOptions();
+        $currentFinancialYear = Depreciation::label(Depreciation::financialYearOf());
+
+        return view('assets.index', compact('assets', 'assetTypes', 'assetSubTypes', 'brands', 'financialYears', 'currentFinancialYear'));
     }
 
     /**
@@ -41,21 +45,49 @@ class AssetController extends Controller
     {
         $validated = $request->validate([
             'asset_type_id' => ['required', 'exists:asset_types,id'],
-            'asset_sub_type_id' => ['required', 'exists:asset_sub_types,id'],
+            'asset_sub_type_id' => [
+                'required',
+                Rule::exists('asset_sub_types', 'id')->where(function ($query) use ($request) {
+                    return $query->where('asset_type_id', $request->input('asset_type_id'));
+                }),
+            ],
+            'brand_id' => ['nullable', 'exists:brands,id'],
             'brand_name' => ['nullable', 'string', 'max:100'],
             'model' => ['nullable', 'string', 'max:100'],
-            'financial_year' => ['nullable', 'string', 'max:9'],
-            // CHANGED: location is no longer entered at registration - assets are allocated afterwards
-            // (branch or employee) from the registry table.
-            // 'location' => ['nullable', 'string', 'max:150'],
+            'financial_year' => ['nullable', 'string', 'in:' . implode(',', Depreciation::financialYearOptions())],
             'cost' => ['required', 'numeric', 'min:0'],
+            'purchase_date' => ['nullable', 'date'],
+            'supplier' => ['nullable', 'string', 'max:150'],
+            'po_reference' => ['nullable', 'string', 'max:100'],
+            'invoice_reference' => ['nullable', 'string', 'max:100'],
+            'residual_value' => ['nullable', 'numeric', 'min:0', 'lte:cost'],
+            'useful_life_months' => ['nullable', 'integer', 'min:1'],
+            'comments' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'asset_sub_type_id.exists' => 'The selected asset sub type does not belong to the selected asset type.',
+            'residual_value.lte' => 'The residual value must not exceed the asset cost.',
         ]);
 
-        if (empty($validated['asset_code'])) {
-            $validated['asset_code'] = 'AST-' . date('Y') . '-' . strtoupper(Str::random(5));
-        }
+        $asset = DB::transaction(function () use ($validated) {
+            $validated['asset_code'] = Asset::generateCode(
+                (int) $validated['asset_type_id'],
+                (int) $validated['asset_sub_type_id']
+            );
 
-        Asset::create($validated);
+            $asset = Asset::create($validated);
+            $asset->addInitialLayer();
+
+            return $asset;
+        });
+
+        // Record activity log
+        $brandText = $asset->brand?->name ?? $asset->brand_name;
+        ActivityLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'Asset Registered',
+            'description' => "Asset {$asset->asset_code} (" . trim("{$brandText} {$asset->model}") . ") registered. " . number_format($asset->cost, 2),
+            'status' => 1,
+        ]);
 
         return redirect()->route('assets.index')->with('success', 'Asset registered successfully.');
     }

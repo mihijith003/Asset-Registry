@@ -12,40 +12,26 @@ class AssetSale extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'sale_id',
-        'sales_ID',
         'asset_id',
         'sale_date',
         'buyer_name',
         'buyer_contact',
         'price',
+        'payment_method',
         'authorized_by',
-        'authorized_BY',
-        'comments', // NEW: notes from the person recording the sale
+        'comments', 
     ];
+
+    /**
+     * Display accessor that formats the id for humans (e.g. SAL-0001).
+     */
+    public function getReferenceAttribute(): string
+    {
+        return 'SAL-' . str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
+    }
 
     public function asset()
     {
         return $this->belongsTo(Asset::class);
-    }
-
-    public function setSaleIdAttribute($value)
-    {
-        $this->attributes['sales_ID'] = $value;
-    }
-
-    public function getSaleIdAttribute()
-    {
-        return $this->attributes['sales_ID'] ?? ($this->attributes['sale_id'] ?? null);
-    }
-
-    public function setAuthorizedByAttribute($value)
-    {
-        $this->attributes['authorized_BY'] = $value;
-    }
-
-    public function getAuthorizedByAttribute()
-    {
-        return $this->attributes['authorized_BY'] ?? ($this->attributes['authorized_by'] ?? null);
     }
 }

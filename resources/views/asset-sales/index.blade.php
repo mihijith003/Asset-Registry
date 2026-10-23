@@ -25,24 +25,6 @@
             <form id="asset-sale-form" action="{{ route('asset-sales.store') }}" method="POST">
                 @csrf
                 <div class="form-row">
-                    <!-- Sale ID -->
-                    <div class="form-group">
-                        <label for="sale_id" class="form-label">
-                            Sale ID <span class="required">*</span>
-                        </label>
-                        <input type="text" 
-                               id="sale_id" 
-                               name="sale_id" 
-                               value="{{ old('sale_id') }}"
-                               placeholder="e.g. SALE-001"
-                               maxlength="50"
-                               required
-                               class="form-control">
-                        @error('sale_id')
-                            <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
-                        @enderror
-                    </div>
-
                     <!-- Asset ID -->
                     <div class="form-group">
                         <label for="asset_id" class="form-label">
@@ -55,11 +37,64 @@
                             <option value="">-- Select Asset --</option>
                             @foreach ($assets as $asset)
                                 <option value="{{ $asset->id }}" {{ old('asset_id') == $asset->id ? 'selected' : '' }}>
-                                    {{ $asset->asset_code }} - {{ $asset->brand_name }} {{ $asset->model }}
+                                    {{ $asset->asset_code }} - {{ $asset->brand?->name ?? $asset->brand_name }} {{ $asset->model }}
                                 </option>
                             @endforeach
                         </select>
                         @error('asset_id')
+                            <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Buyer Name -->
+                    <div class="form-group">
+                        <label for="buyer_name" class="form-label">
+                            Buyer Name <span class="required">*</span>
+                        </label>
+                        <input type="text" 
+                               id="buyer_name" 
+                               name="buyer_name" 
+                               value="{{ old('buyer_name') }}" 
+                               required 
+                               placeholder="e.g. John Doe or Acme Corp" 
+                               maxlength="150" 
+                               class="form-control">
+                        @error('buyer_name')
+                            <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Buyer Contact -->
+                    <div class="form-group">
+                        <label for="buyer_contact" class="form-label">
+                            Buyer Contact
+                        </label>
+                        <input type="text" 
+                               id="buyer_contact" 
+                               name="buyer_contact" 
+                               value="{{ old('buyer_contact') }}" 
+                               placeholder="e.g. Phone number or email" 
+                               maxlength="100" 
+                               class="form-control">
+                        @error('buyer_contact')
+                            <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Payment Method -->
+                    <div class="form-group">
+                        <label for="payment_method" class="form-label">
+                            Payment Method
+                        </label>
+                        <select id="payment_method" name="payment_method" class="form-select">
+                            <option value="">-- Select Payment Method --</option>
+                            @foreach (['Cash', 'Cheque', 'Bank Transfer', 'Other'] as $method)
+                                <option value="{{ $method }}" {{ old('payment_method') === $method ? 'selected' : '' }}>
+                                    {{ $method }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('payment_method')
                             <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
                         @enderror
                     </div>
@@ -82,26 +117,6 @@
                             <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
                         @enderror
                     </div>
-
-                    {{-- CHANGED: "Authorized By" input removed. Authorization is now an admin
-                         password popup shown when "Record Sale" is clicked (see <x-admin-password-modal> below).
-                    <!-- Authorized By -->
-                    <div class="form-group">
-                        <label for="authorized_by" class="form-label">
-                            Authorized By
-                        </label>
-                        <input type="text"
-                               id="authorized_by"
-                               name="authorized_by"
-                               value="{{ old('authorized_by') }}"
-                               placeholder="e.g. Finance Manager"
-                               maxlength="100"
-                               class="form-control">
-                        @error('authorized_by')
-                            <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    --}}
                 </div>
 
                 {{-- NEW: optional notes from the person recording the sale --}}
@@ -147,7 +162,9 @@
                     <tr>
                         <th>Sale ID</th>
                         <th>Asset Code</th>
+                        <th>Buyer</th>
                         <th style="text-align: right;">Price</th>
+                        <th>Payment Method</th>
                         <th>Authorized By</th>
                         <th>Sale Date</th>
                         <th>Comments</th>
@@ -159,21 +176,30 @@
                     @foreach ($sales as $sale)
                         <tr>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
-                                {{ $sale->sales_ID ?? $sale->sale_id }}
+                                {{ $sale->reference }}
                             </td>
                             <td>
                                 <div>
                                     {{ $sale->asset->asset_code ?? 'Asset #' . $sale->asset_id }}
                                 </div>
                                 <div style="font-size: 0.75rem; color: var(--text-muted);">
-                                    {{ $sale->asset->brand_name ?? '' }} {{ $sale->asset->model ?? '' }}
+                                    {{ $sale->asset?->brand?->name ?? ($sale->asset?->brand_name ?? '') }} {{ $sale->asset?->model ?? '' }}
                                 </div>
+                            </td>
+                            <td>
+                                <div>{{ $sale->buyer_name ?: '-' }}</div>
+                                @if ($sale->buyer_contact)
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ $sale->buyer_contact }}</div>
+                                @endif
                             </td>
                             <td style="text-align: right; font-weight: 500;" data-order="{{ $sale->price }}">
                                 {{ number_format($sale->price, 2) }}
                             </td>
                             <td>
-                                {{ $sale->authorized_BY ?? ($sale->authorized_by ?? '-') }}
+                                {{ $sale->payment_method ?: '-' }}
+                            </td>
+                            <td>
+                                {{ $sale->authorized_by ?? '-' }}
                             </td>
                             <td style="font-size: 0.875rem; color: var(--text-muted);">
                                 {{ $sale->sale_date ?? '-' }}

@@ -339,6 +339,56 @@ a:hover {
     border-top: 1px solid var(--border-color);
 }
 
+/* Depreciation report summary strip */
+.summary-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2rem;
+    font-size: 0.875rem;
+}
+
+.summary-row .muted {
+    color: var(--text-muted);
+}
+
+/* Modification form: section headings, hints and the live result preview */
+.form-section-title {
+    margin: 0.5rem 0 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.form-section-hint {
+    font-weight: 400;
+    color: var(--text-muted);
+}
+
+.form-hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.form-row [hidden],
+.form-group[hidden] {
+    display: none;
+}
+
+.modification-preview {
+    padding: 0.5rem 0.75rem;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius);
+    background-color: var(--bg-main);
+    font-size: 0.875rem;
+}
+
+.modification-preview .muted {
+    color: var(--text-muted);
+}
+
 /* Generic modal dialog (used by the Allocate dialog in the asset registry) */
 .modal-overlay {
     position: fixed;
@@ -524,5 +574,54 @@ a:hover {
     background-color: #f1f5f9;
     color: #475569;
     border: 1px solid #e2e8f0;
+}
+
+/* Master Files / Bootstrap Tabs */
+.nav-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    padding-left: 0;
+    margin-bottom: 1.5rem;
+    list-style: none;
+    border-bottom: 2px solid var(--border-color);
+    gap: 0.5rem;
+}
+
+.nav-tabs .nav-item {
+    margin-bottom: -2px;
+}
+
+.nav-tabs .nav-link {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.9375rem;
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--text-main);
+    border-bottom-color: var(--border-color);
+    text-decoration: none;
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+}
+
+.tab-content > .tab-pane {
+    display: none;
+}
+
+.tab-content > .tab-pane.active {
+    display: block;
 }
 
