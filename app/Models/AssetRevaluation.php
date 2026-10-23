@@ -30,12 +30,12 @@ class AssetRevaluation extends Model
 
     public function asset()
     {
-        return $this->belongsTo(Asset::class);
+        return $this->belongsTo(Asset::class)->withTrashed();
     }
 
     public function resultAsset()
     {
-        return $this->belongsTo(Asset::class, 'result_asset_id');
+        return $this->belongsTo(Asset::class, 'result_asset_id')->withTrashed();
     }
 
     /**

@@ -227,14 +227,22 @@
                             </td>
                             <td>
                                 <div>
-                                    {{ $revaluation->asset->asset_code ?? 'Asset #' . $revaluation->asset_id }}
+                                    @if ($revaluation->asset)
+                                        <a href="{{ route('assets.timeline', $revaluation->asset->id) }}" style="font-family: monospace; font-weight: 600; color: var(--primary);">{{ $revaluation->asset->asset_code }}</a>
+                                    @else
+                                        Asset #{{ $revaluation->asset_id }}
+                                    @endif
                                 </div>
                                 <div style="font-size: 0.75rem; color: var(--text-muted);">
                                     {{ $revaluation->asset?->brand?->name ?? ($revaluation->asset?->brand_name ?? '') }} {{ $revaluation->asset?->model ?? '' }}
                                 </div>
                             </td>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
-                                {{ $revaluation->resultAsset?->asset_code ?? '-' }}
+                                @if ($revaluation->resultAsset)
+                                    <a href="{{ route('assets.timeline', $revaluation->resultAsset->id) }}" style="color: var(--primary);">{{ $revaluation->resultAsset->asset_code }}</a>
+                                @else
+                                    -
+                                @endif
                             </td>
                             <td style="text-align: right; font-weight: 500;" data-order="{{ $revaluation->previous_value }}">
                                 {{ number_format($revaluation->previous_value, 2) }}

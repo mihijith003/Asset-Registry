@@ -180,7 +180,11 @@
                             </td>
                             <td>
                                 <div>
-                                    {{ $sale->asset->asset_code ?? 'Asset #' . $sale->asset_id }}
+                                    @if ($sale->asset)
+                                        <a href="{{ route('assets.timeline', $sale->asset->id) }}" style="font-family: monospace; font-weight: 600; color: var(--primary);">{{ $sale->asset->asset_code }}</a>
+                                    @else
+                                        Asset #{{ $sale->asset_id }}
+                                    @endif
                                 </div>
                                 <div style="font-size: 0.75rem; color: var(--text-muted);">
                                     {{ $sale->asset?->brand?->name ?? ($sale->asset?->brand_name ?? '') }} {{ $sale->asset?->model ?? '' }}

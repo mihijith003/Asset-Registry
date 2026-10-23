@@ -6,6 +6,7 @@ use App\Http\Controllers\AssetDisposalController;
 use App\Http\Controllers\AssetModificationController;
 use App\Http\Controllers\AssetRevaluationController;
 use App\Http\Controllers\AssetSaleController;
+use App\Http\Controllers\AssetTimelineController;
 use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +49,7 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
     Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
+    Route::get('/assets/{asset}/timeline', [AssetTimelineController::class, 'show'])->withTrashed()->name('assets.timeline');
     // NEW: allocate an asset to a branch or an employee (same permission as the registry)
     Route::post('/assets/{asset}/allocations', [AssetAllocationController::class, 'store'])->name('assets.allocate');
 

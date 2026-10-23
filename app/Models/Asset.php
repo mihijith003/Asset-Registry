@@ -105,7 +105,7 @@ class Asset extends Model
      */
     public function mergedInto()
     {
-        return $this->belongsTo(Asset::class, 'merged_into_asset_id');
+        return $this->belongsTo(Asset::class, 'merged_into_asset_id')->withTrashed();
     }
 
     public function assetType()
@@ -181,7 +181,7 @@ class Asset extends Model
      */
     public function originAsset()
     {
-        return $this->belongsTo(Asset::class, 'origin_asset_id');
+        return $this->belongsTo(Asset::class, 'origin_asset_id')->withTrashed();
     }
 
     /**
@@ -205,6 +205,84 @@ class Asset extends Model
         }
 
         return $ids;
+    }
+
+    /**
+     * Resolve the entire identity chain for this asset across revaluations, combinations, and removals.
+     * Walks superseded_by_asset_id and merged_into_asset_id forwards to the current asset,
+     * and backwards to every predecessor (including origin_asset_id for removed components).
+     * Guards against infinite loops on cyclic data and returns the chain ordered oldest first.
+     *
+     * @param  array<int, string>  $with  Optional relationships to eager-load on the returned collection.
+     * @return \Illuminate\Database\Eloquent\Collection<int, Asset>
+     */
+    public function resolveChain(array $with = []): \Illuminate\Database\Eloquent\Collection
+    {
+        $visited = [$this->id => true];
+
+        // 1. Walk forwards along superseded_by_asset_id and merged_into_asset_id to the current asset
+        $cursor = $this;
+        $maxSteps = 500;
+        while ($cursor && $maxSteps-- > 0) {
+            $nextId = $cursor->superseded_by_asset_id ?? $cursor->merged_into_asset_id;
+            if (! $nextId || isset($visited[$nextId])) {
+                break;
+            }
+
+            $next = static::withTrashed()->find($nextId);
+            if (! $next) {
+                break;
+            }
+
+            $visited[$next->id] = true;
+            $cursor = $next;
+        }
+
+        // 2. Walk backwards from all discovered nodes to every predecessor (and any removed components branching off)
+        $frontier = array_keys($visited);
+        $maxIterations = 500;
+        while (! empty($frontier) && $maxIterations-- > 0) {
+            $frontierNodes = static::withTrashed()
+                ->whereIn('id', $frontier)
+                ->get(['id', 'origin_asset_id', 'superseded_by_asset_id', 'merged_into_asset_id']);
+
+            $relatedIds = $frontierNodes->pluck('origin_asset_id')
+                ->merge($frontierNodes->pluck('superseded_by_asset_id'))
+                ->merge($frontierNodes->pluck('merged_into_asset_id'))
+                ->filter()
+                ->all();
+
+            $connected = static::withTrashed()
+                ->where(function ($query) use ($frontier, $relatedIds) {
+                    $query->whereIn('superseded_by_asset_id', $frontier)
+                        ->orWhereIn('merged_into_asset_id', $frontier)
+                        ->orWhereIn('origin_asset_id', $frontier);
+
+                    if (! empty($relatedIds)) {
+                        $query->orWhereIn('id', $relatedIds);
+                    }
+                })
+                ->pluck('id')
+                ->all();
+
+            $newFrontier = [];
+            foreach ($connected as $connId) {
+                if (! isset($visited[$connId])) {
+                    $visited[$connId] = true;
+                    $newFrontier[] = $connId;
+                }
+            }
+
+            $frontier = $newFrontier;
+        }
+
+        // 3. Load all assets in the chain with requested eager loads, ordered oldest first
+        $query = static::withTrashed()->whereIn('id', array_keys($visited));
+        if (! empty($with)) {
+            $query->with($with);
+        }
+
+        return $query->orderBy('created_at')->orderBy('id')->get();
     }
 
     /**
@@ -257,7 +335,7 @@ class Asset extends Model
      */
     public function supersededBy()
     {
-        return $this->belongsTo(Asset::class, 'superseded_by_asset_id');
+        return $this->belongsTo(Asset::class, 'superseded_by_asset_id')->withTrashed();
     }
 
     /**
@@ -265,7 +343,7 @@ class Asset extends Model
      */
     public function supersedes()
     {
-        return $this->hasOne(Asset::class, 'superseded_by_asset_id');
+        return $this->hasOne(Asset::class, 'superseded_by_asset_id')->withTrashed();
     }
 
     /**
