@@ -324,21 +324,43 @@
                                 @endif
                             </td>
                             <td>
-                                <div>{{ $mod->asset->asset_code ?? 'Asset #' . $mod->asset_id }}</div>
+                                <div>
+                                    @if ($mod->asset)
+                                        <a href="{{ route('assets.timeline', $mod->asset->id) }}" style="font-family: monospace; font-weight: 600; color: var(--primary);">{{ $mod->asset->asset_code }}</a>
+                                    @else
+                                        Asset #{{ $mod->asset_id }}
+                                    @endif
+                                </div>
                                 <div style="font-size: 0.75rem; color: var(--text-muted);">{{ $mod->asset->brand_name ?? '' }} {{ $mod->asset->model ?? '' }}</div>
                             </td>
                             <td>{{ $mod->modification_date }}</td>
                             <td>
-                                {{ $mod->removed_asset ?? '-' }}
+                                @if ($mod->removedAsset)
+                                    <a href="{{ route('assets.timeline', $mod->removedAsset->id) }}" style="font-family: monospace; font-weight: 600; color: var(--primary);">{{ $mod->removedAsset->asset_code }}</a>
+                                    @if ($mod->removed_asset && $mod->removed_asset !== $mod->removedAsset->asset_code)
+                                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ $mod->removed_asset }}</div>
+                                    @endif
+                                @else
+                                    {{ $mod->removed_asset ?? '-' }}
+                                @endif
                                 @if ($mod->removed_price !== null)
                                     <div style="font-size: 0.75rem; color: var(--text-muted);">Price {{ number_format($mod->removed_price, 2) }}</div>
                                 @endif
                             </td>
                             <td>
-                                {{ $mod->added_asset ?? '-' }}
+                                @if ($mod->componentAsset)
+                                    <a href="{{ route('assets.timeline', $mod->componentAsset->id) }}" style="font-family: monospace; font-weight: 600; color: var(--primary);">{{ $mod->componentAsset->asset_code }}</a>
+                                    @if ($mod->added_asset && $mod->added_asset !== $mod->componentAsset->asset_code)
+                                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ $mod->added_asset }}</div>
+                                    @endif
+                                @else
+                                    {{ $mod->added_asset ?? '-' }}
+                                @endif
                                 {{-- the new combined asset this modification created (if it still exists) --}}
                                 @if ($mod->resultAsset)
-                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Combined into {{ $mod->resultAsset->asset_code }}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                                        Combined into <a href="{{ route('assets.timeline', $mod->resultAsset->id) }}" style="font-family: monospace; font-weight: 600;">{{ $mod->resultAsset->asset_code }}</a>
+                                    </div>
                                 @endif
                             </td>
                             <td class="text-right" style="font-weight: 500;" data-order="{{ $mod->new_value ?? -1 }}">{{ $mod->new_value !== null ? number_format($mod->new_value, 2) : '-' }}</td>

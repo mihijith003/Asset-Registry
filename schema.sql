@@ -165,6 +165,8 @@ CREATE TABLE assets (
     -- Combination tracking: set on the two originals when they are merged
     -- into a new combined asset. NULL = visible in the registry.
     merged_into_asset_id BIGINT UNSIGNED NULL,
+    supereseded_by_asset_id BIGINT UNSIGNED NULL,
+
     -- For a component removed during a modification: the asset it came
     -- out of originally.
     origin_asset_id BIGINT UNSIGNED NULL,
@@ -186,6 +188,9 @@ CREATE TABLE assets (
         REFERENCES assets(id) ON DELETE SET NULL,
     CONSTRAINT fk_assets_origin FOREIGN KEY (origin_asset_id)
         REFERENCES assets(id) ON DELETE SET NULL,
+    CONSTRAINT fk_assets_supereseded_by FOREIGN KEY (supereseded_by_asset_id)
+        REFERENCES assets(id) ON DELETE SET NULL,
+    KEY idx_assets_superseded_by (superseded_by_asset_id),
 
     -- supports the per type+subtype counter that builds asset_code
     KEY idx_assets_code_seq (asset_type_id, asset_sub_type_id),
@@ -308,11 +313,18 @@ CREATE TABLE asset_revaluations (
     reason VARCHAR(255) NULL,
     authorized_by VARCHAR(150) NULL,
     comments TEXT NULL,
+    result_asset_id BIGINT UNSIGNED NULL,
+    new_useful_life_months SMALLINT UNSIGNED NULL,               -- if a new asset was
+                                                 -- created for the revalued
+                                                 -- item, link it here
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_revals_asset FOREIGN KEY (asset_id)
         REFERENCES assets(id) ON DELETE RESTRICT,
-    KEY idx_revals_history (asset_id, revaluation_date)
+    KEY idx_revals_history (asset_id, revaluation_date),
+    CONSTRAINT fk_revals_result FOREIGN KEY (result_asset_id)
+        REFERENCES assets(id) ON DELETE SET NULL,
+    KEY idx_revals_result (result_asset_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------

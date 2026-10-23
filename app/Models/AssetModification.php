@@ -39,7 +39,7 @@ class AssetModification extends Model
      */
     public function asset()
     {
-        return $this->belongsTo(Asset::class);
+        return $this->belongsTo(Asset::class)->withTrashed();
     }
 
     /**
@@ -47,7 +47,7 @@ class AssetModification extends Model
      */
     public function componentAsset()
     {
-        return $this->belongsTo(Asset::class, 'component_asset_id');
+        return $this->belongsTo(Asset::class, 'component_asset_id')->withTrashed();
     }
 
     /**
@@ -55,6 +55,14 @@ class AssetModification extends Model
      */
     public function resultAsset()
     {
-        return $this->belongsTo(Asset::class, 'result_asset_id');
+        return $this->belongsTo(Asset::class, 'result_asset_id')->withTrashed();
+    }
+
+    /**
+     * The asset created or restored for the component removed during this modification.
+     */
+    public function removedAsset()
+    {
+        return $this->belongsTo(Asset::class, 'removed_asset_id')->withTrashed();
     }
 }

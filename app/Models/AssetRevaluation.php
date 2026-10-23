@@ -11,9 +11,11 @@ class AssetRevaluation extends Model
 
     protected $fillable = [
         'asset_id',
+        'result_asset_id',
         'revaluation_date',
         'previous_value',
         'revalued_amount',
+        'new_useful_life_months',
         'reason',
         'authorized_by',
         'comments',
@@ -23,11 +25,17 @@ class AssetRevaluation extends Model
         'revaluation_date' => 'date',
         'previous_value' => 'float',
         'revalued_amount' => 'float',
+        'new_useful_life_months' => 'integer',
     ];
 
     public function asset()
     {
-        return $this->belongsTo(Asset::class);
+        return $this->belongsTo(Asset::class)->withTrashed();
+    }
+
+    public function resultAsset()
+    {
+        return $this->belongsTo(Asset::class, 'result_asset_id')->withTrashed();
     }
 
     /**

@@ -22,7 +22,7 @@ class AssetModificationController extends Controller
      */
     public function index(): View
     {
-        $modifications = AssetModification::with(['asset', 'resultAsset'])
+        $modifications = AssetModification::with(['asset', 'componentAsset', 'resultAsset', 'removedAsset'])
             ->orderByDesc('id')
             ->get(); // DataTables does the paging/search/sort in the browser
 

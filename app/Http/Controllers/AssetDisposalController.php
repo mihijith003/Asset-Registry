@@ -22,8 +22,8 @@ class AssetDisposalController extends Controller
             ->orderByDesc('id')
             ->get(); 
 
-        // Assets that were merged into a combined asset are no longer disposable.
-        $assets = Asset::whereNull('merged_into_asset_id')->orderBy('asset_code')->get();
+        // Assets that were sold, disposed, merged into a combined asset, or superseded by revaluation are no longer disposable.
+        $assets = Asset::active()->orderBy('asset_code')->get();
 
         return view('asset-disposals.index', compact('disposals', 'assets'));
     }
@@ -36,7 +36,7 @@ class AssetDisposalController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')],
+            'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')->whereNull('superseded_by_asset_id')],
             'method' => ['required', 'string', 'in:Donated,Scrapped,Lost'],
             'comments' => ['nullable', 'string', 'max:1000'], 
 

@@ -154,7 +154,9 @@
                 <tbody>
                     @foreach ($assets as $asset)
                         <tr>
-                            <td style="font-family: monospace; font-weight: 600; color: var(--primary);">{{ $asset->asset_code }}</td>
+                            <td style="font-family: monospace; font-weight: 600;">
+                                <a href="{{ route('assets.timeline', $asset->id) }}" style="color: var(--primary);">{{ $asset->asset_code }}</a>
+                            </td>
                             <td>{{ $asset->assetType->type_name ?? 'N/A' }}</td>
                             <td>
                                 {{ $asset->brand?->name ?? ($asset->brand_name ?? '-') }} {{ $asset->model ? '(' . $asset->model . ')' : '' }}
@@ -166,10 +168,25 @@
                                     </div>
                                     <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
                                         @if ($asset->originAsset)
-                                            Originally came with {{ $asset->originAsset->asset_code }} ({{ trim(($asset->originAsset->brand?->name ?? $asset->originAsset->brand_name) . ' ' . $asset->originAsset->model) }}).
+                                            Originally came with <a href="{{ route('assets.timeline', $asset->originAsset->id) }}">{{ $asset->originAsset->asset_code }}</a> ({{ trim(($asset->originAsset->brand?->name ?? $asset->originAsset->brand_name) . ' ' . $asset->originAsset->model) }}).
                                         @endif
-                                        Removed from {{ $asset->removalModification->asset->asset_code ?? 'Asset #' . $asset->removalModification->asset_id }}
+                                        Removed from
+                                        @if ($asset->removalModification->asset)
+                                            <a href="{{ route('assets.timeline', $asset->removalModification->asset->id) }}">{{ $asset->removalModification->asset->asset_code }}</a>
+                                        @else
+                                            Asset #{{ $asset->removalModification->asset_id }}
+                                        @endif
                                         in {{ $asset->removalModification->reference }} ({{ $asset->removalModification->modification_date }}).
+                                    </div>
+                                @endif
+                                @php
+                                    $revalPredecessor = $asset->supersedes ?? $asset->revaluationIn?->asset;
+                                @endphp
+                                @if ($revalPredecessor)
+                                    <div style="margin-top: 0.25rem;">
+                                        <a href="{{ route('assets.timeline', $revalPredecessor->id) }}" class="badge badge-secondary" style="text-decoration: none;">
+                                            Revalued from {{ $revalPredecessor->asset_code }}
+                                        </a>
                                     </div>
                                 @endif
                                 @if ($asset->components->isNotEmpty())
@@ -183,7 +200,10 @@
                                         </div>
                                         <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
                                             Combination of {{ $asset->components->count() }} previous assets:
-                                            {{ $asset->components->map(fn ($c) => $c->asset_code . ' (' . trim(($c->brand?->name ?? $c->brand_name) . ' ' . $c->model) . ')')->join(' + ') }}
+                                            @foreach ($asset->components as $cIdx => $c)
+                                                @if ($cIdx > 0) + @endif
+                                                <a href="{{ route('assets.timeline', $c->id) }}">{{ $c->asset_code }}</a> ({{ trim(($c->brand?->name ?? $c->brand_name) . ' ' . $c->model) }})
+                                            @endforeach
                                         </div>
                                     @endif
                                 @endif

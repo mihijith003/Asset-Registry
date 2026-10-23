@@ -117,7 +117,11 @@
                         </td>
                         <td>
                             <div>
-                                {{ $pending->asset->asset_code ?? 'Asset #' . $pending->asset_id }}
+                                @if ($pending->asset)
+                                    <a href="{{ route('assets.timeline', $pending->asset->id) }}" style="font-family: monospace; font-weight: 600; color: var(--primary);">{{ $pending->asset->asset_code }}</a>
+                                @else
+                                    Asset #{{ $pending->asset_id }}
+                                @endif
                             </div>
                             <div style="font-size: 0.75rem; color: var(--text-muted);">
                                 {{ $pending->asset->brand_name ?? '' }} {{ $pending->asset->model ?? '' }}
@@ -190,7 +194,11 @@
                             </td>
                             <td>
                                 <div>
-                                    {{ $disposal->asset->asset_code ?? 'Asset #' . $disposal->asset_id }}
+                                    @if ($disposal->asset)
+                                        <a href="{{ route('assets.timeline', $disposal->asset->id) }}" style="font-family: monospace; font-weight: 600; color: var(--primary);">{{ $disposal->asset->asset_code }}</a>
+                                    @else
+                                        Asset #{{ $disposal->asset_id }}
+                                    @endif
                                 </div>
                                 <div style="font-size: 0.75rem; color: var(--text-muted);">
                                     {{ $disposal->asset->brand_name ?? '' }} {{ $disposal->asset->model ?? '' }}
