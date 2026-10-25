@@ -68,6 +68,26 @@ class Asset extends Model
     }
 
     /**
+     * Type / sub type filter used by the list pages and their print views. Takes the request or an array with
+     * asset_type_id / asset_sub_type_id; a value that is missing, empty or "all" is not filtered on.
+     * (For sales, disposals etc. use FiltersByAssetType::applyTypeFilter(), which filters the related asset.)
+     */
+    public function scopeOfType($query, $filters)
+    {
+        $filters = $filters instanceof \Illuminate\Http\Request ? $filters->query() : (array) $filters;
+
+        foreach (['asset_type_id', 'asset_sub_type_id'] as $column) {
+            $value = $filters[$column] ?? null;
+
+            if ($value !== null && $value !== '' && $value !== 'all') {
+                $query->where($this->qualifyColumn($column), $value);
+            }
+        }
+
+        return $query;
+    }
+
+    /**
      * NEW: the original assets that were combined to create this asset (empty for normal assets).
      */
     public function components()
