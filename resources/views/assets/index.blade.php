@@ -122,13 +122,19 @@
     </div>
 
     <!-- Assets List -->
+    {{-- Type / sub type filter (GET); Print Summary carries the same filter to the print view --}}
+    @include('partials.type-filter', ['assetTypes' => $assetTypes, 'assetSubTypes' => $assetSubTypes, 'action' => route('assets.index')])
+
     <div class="card">
         <div class="card-header">
             <div>
                 <h3>Registered Assets</h3>
                 <p>Overview of all active assets in the database.</p>
             </div>
-            <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $assets->count() }}</span>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $assets->count() }}</span>
+                @include('partials.print-summary-button', ['route' => 'assets.print'])
+            </div>
         </div>
 
         <div class="table-responsive">
