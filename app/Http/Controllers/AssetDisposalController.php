@@ -2,30 +2,98 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\FiltersByAssetType;
 use App\Models\Asset;
 use App\Models\AssetDisposal;
 use App\Support\AdminAuthorization; // NEW: admin-password check
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule; // NEW: for the merged-asset check
 use Illuminate\View\View;
 use App\Models\ActivityLog; 
 
 class AssetDisposalController extends Controller
 {
+    use FiltersByAssetType;
+
+    public const APPROVAL_STATUSES = ['approved' => 'Approved', 'pending' => 'Pending'];
+
     /**
      * Display a listing of asset disposals and the disposal form.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
-        $disposals = AssetDisposal::with('asset')
-            ->orderByDesc('id')
-            ->get(); 
+        $filters = $this->eventFilters($request, $this->extraFilterRules());
+        $disposals = $this->filteredDisposals($filters, ['asset.assetType', 'asset.subType', 'asset.brand'])->orderByDesc('id')->get();
+
+        // The approval queue is not filtered: every pending Lost claim needs action. (Was queried inside the view.)
+        $pendingDisposals = AssetDisposal::with('asset')->where('approval_status', 'pending')->orderBy('id')->get();
 
         // Assets that were sold, disposed, merged into a combined asset, or superseded by revaluation are no longer disposable.
         $assets = Asset::active()->orderBy('asset_code')->get();
+        $filterFields = $this->filterFields($filters);
 
-        return view('asset-disposals.index', compact('disposals', 'assets'));
+        return view('asset-disposals.index', compact('disposals', 'pendingDisposals', 'assets', 'filterFields'));
+    }
+
+    /**
+     * "Disposals Report": the disposals on the screen list (same filters), with book value at the disposal date.
+     */
+    public function printSummary(Request $request): View
+    {
+        $filters = $this->eventFilters($request, $this->extraFilterRules());
+        $disposals = $this->filteredDisposals($filters, ['asset.assetType', 'asset.subType', 'asset.layers'])
+            ->orderBy('disposal_date')->orderBy('id')->get();
+
+        $rows = $disposals->map(function (AssetDisposal $disposal) {
+            $asset = $disposal->asset;
+            $date = $disposal->disposal_date ? Carbon::parse($disposal->disposal_date)->startOfDay() : Carbon::today();
+
+            return (object) [
+                'disposal' => $disposal,
+                'asset' => $asset,
+                'book_value' => $asset ? $asset->netBookValue($date) : null,
+            ];
+        });
+
+        $approved = $rows->filter(fn ($r) => $r->disposal->approval_status === 'approved');
+        $pending = $rows->filter(fn ($r) => $r->disposal->approval_status === 'pending');
+        $totals = (object) [
+            'by_method' => $rows->countBy(fn ($r) => $r->disposal->method)->sortKeys(),
+            'written_off' => round($approved->sum('book_value'), 2), // only approved disposals are written off
+            'pending_count' => $pending->count(),
+            'pending_book_value' => round($pending->sum('book_value'), 2),
+        ];
+
+        $period = $this->periodLabel($filters);
+        $statusLabel = self::APPROVAL_STATUSES[$filters['approval_status']] ?? null;
+
+        return view('asset-disposals.print-summary', compact('rows', 'totals', 'period', 'statusLabel'));
+    }
+
+    private function extraFilterRules(): array
+    {
+        return ['approval_status' => 'nullable|in:' . implode(',', array_keys(self::APPROVAL_STATUSES))];
+    }
+
+    private function filterFields(array $filters): array
+    {
+        return array_merge($this->dateFilterFields($filters), [[
+            'name' => 'approval_status', 'label' => 'Approval Status', 'type' => 'select',
+            'options' => ['' => 'All'] + self::APPROVAL_STATUSES,
+        ]]);
+    }
+
+    private function filteredDisposals(array $filters, array $with)
+    {
+        // AssetDisposal::asset() is withTrashed(): an approved Lost item's asset is soft-deleted
+        $query = AssetDisposal::with($with)
+            ->when($filters['approval_status'], fn ($q, $status) => $q->where('approval_status', $status));
+
+        $this->applyTypeFilter($query, $filters, 'asset');
+
+        return $this->applyDateFilter($query, $filters, 'disposal_date');
     }
 
     /**

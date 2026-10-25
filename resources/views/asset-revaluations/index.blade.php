@@ -192,15 +192,18 @@
     </div>
 
     <!-- Revaluations Records Table -->
+    @include('partials.type-filter', ['fields' => $filterFields])
+
     <div class="card">
         <div class="card-header">
             <div>
                 <h3>Revaluation Records</h3>
                 <p>History of assets that have been revalued.</p>
             </div>
-            <span style="font-size: 0.875rem; color: var(--text-muted);">
-                Total: {{ $revaluations->count() }}
-            </span>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $revaluations->count() }}</span>
+                @include('partials.print-summary-button', ['route' => 'asset-revaluations.print-summary'])
+            </div>
         </div>
 
         <div class="table-responsive">

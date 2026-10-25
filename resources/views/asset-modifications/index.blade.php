@@ -280,13 +280,18 @@
     </div>
 
     <!-- Modifications List -->
+    @include('partials.type-filter', ['fields' => $filterFields])
+
     <div class="card">
         <div class="card-header">
             <div>
                 <h3>Modification History</h3>
                 <p>Record of all asset upgrades and downgrades.</p>
             </div>
-            <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $modifications->count() }}</span>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $modifications->count() }}</span>
+                @include('partials.print-summary-button', ['route' => 'asset-modifications.print-summary'])
+            </div>
         </div>
 
         <div class="table-responsive">

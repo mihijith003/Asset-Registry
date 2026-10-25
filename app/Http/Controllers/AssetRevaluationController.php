@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\FiltersByAssetType;
 use App\Models\ActivityLog;
 use App\Models\Asset;
 use App\Models\AssetRevaluation;
@@ -17,14 +18,16 @@ use Illuminate\View\View;
 
 class AssetRevaluationController extends Controller
 {
+    use FiltersByAssetType;
+
     /**
      * Display a listing of asset revaluations and the revaluation form.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
-        $revaluations = AssetRevaluation::with(['asset.assetType', 'asset.subType', 'asset.brand', 'resultAsset'])
-            ->orderByDesc('id')
-            ->get();
+        $filters = $this->eventFilters($request);
+        $filterFields = $this->dateFilterFields($filters);
+        $revaluations = $this->filteredRevaluations($filters)->orderByDesc('id')->get();
 
         // Active assets available to revalue (excludes sold, disposed, merged and superseded assets)
         $assets = Asset::active()
@@ -54,7 +57,42 @@ class AssetRevaluationController extends Controller
             $asset->setAttribute('total_life_months', $lifeMonths);
         }
 
-        return view('asset-revaluations.index', compact('revaluations', 'assets'));
+        return view('asset-revaluations.index', compact('revaluations', 'assets', 'filterFields'));
+    }
+
+    /**
+     * "Revaluation History": the revaluations on the screen list (same filters).
+     */
+    public function printSummary(Request $request): View
+    {
+        $filters = $this->eventFilters($request);
+        $revaluations = $this->filteredRevaluations($filters)->orderBy('revaluation_date')->orderBy('id')->get();
+
+        $rows = $revaluations->map(fn (AssetRevaluation $revaluation) => (object) [
+            'revaluation' => $revaluation,
+            'asset' => $revaluation->asset,
+            'change' => $revaluation->previous_value !== null
+                ? round($revaluation->revalued_amount - $revaluation->previous_value, 2)
+                : null,
+        ]);
+
+        $totals = (object) [
+            'count' => $rows->count(),
+            'change' => round($rows->sum('change'), 2),
+        ];
+        $period = $this->periodLabel($filters);
+
+        return view('asset-revaluations.print-summary', compact('rows', 'totals', 'period'));
+    }
+
+    private function filteredRevaluations(array $filters)
+    {
+        // asset() / resultAsset() are withTrashed(): a revalued asset is superseded and may be soft-deleted later
+        $query = AssetRevaluation::with(['asset.assetType', 'asset.subType', 'asset.brand', 'resultAsset']);
+
+        $this->applyTypeFilter($query, $filters, 'asset');
+
+        return $this->applyDateFilter($query, $filters, 'revaluation_date');
     }
 
     /**

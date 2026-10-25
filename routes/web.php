@@ -75,6 +75,7 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {
     Route::get('/asset-modifications', [AssetModificationController::class, 'index'])->name('asset-modifications.index');
+    Route::get('/asset-modifications/print', [AssetModificationController::class, 'printSummary'])->name('asset-modifications.print-summary');
     
     // Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->name('asset-modifications.store');
     Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->middleware('throttle:10,1')->name('asset-modifications.store');
@@ -82,12 +83,14 @@ Route::middleware(['auth', 'permission:modify assets'])->group(function () {
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {
     Route::get('/asset-revaluations', [AssetRevaluationController::class, 'index'])->name('asset-revaluations.index');
+    Route::get('/asset-revaluations/print', [AssetRevaluationController::class, 'printSummary'])->name('asset-revaluations.print-summary');
     Route::post('/asset-revaluations', [AssetRevaluationController::class, 'store'])->middleware('throttle:10,1')->name('asset-revaluations.store');
 });
 
 // ONLY Admin can access these
 Route::middleware(['auth', 'permission:sell assets'])->group(function () {
     Route::get('/asset-sales', [AssetSaleController::class, 'index'])->name('asset-sales.index');
+    Route::get('/asset-sales/print', [AssetSaleController::class, 'printSummary'])->name('asset-sales.print-summary');
     
     // Route::post('/asset-sales', [AssetSaleController::class, 'store'])->name('asset-sales.store');
     Route::post('/asset-sales', [AssetSaleController::class, 'store'])->middleware('throttle:10,1')->name('asset-sales.store');
@@ -98,6 +101,7 @@ Route::middleware(['auth', 'permission:sell assets'])->group(function () {
 
 Route::middleware(['auth', 'permission:dispose assets'])->group(function () {
     Route::get('/asset-disposals', [AssetDisposalController::class, 'index'])->name('asset-disposals.index');
+    Route::get('/asset-disposals/print', [AssetDisposalController::class, 'printSummary'])->name('asset-disposals.print-summary');
     
     // Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->name('asset-disposals.store');
     Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->middleware('throttle:10,1')->name('asset-disposals.store');

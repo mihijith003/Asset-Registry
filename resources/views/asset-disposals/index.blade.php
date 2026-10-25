@@ -110,7 +110,7 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse(\App\Models\AssetDisposal::where('approval_status', 'pending')->get() as $pending)
+                @forelse($pendingDisposals as $pending)
                     <tr>
                         <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
                             {{ $pending->reference }}
@@ -159,15 +159,18 @@
 
 
     <!-- Disposals Table -->
+    @include('partials.type-filter', ['fields' => $filterFields])
+
     <div class="card">
         <div class="card-header">
             <div>
                 <h3>Disposal Records</h3>
                 <p>History of assets that have been disposed or retired.</p>
             </div>
-            <span style="font-size: 0.875rem; color: var(--text-muted);">
-                Total: {{ $disposals->count() }}
-            </span>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $disposals->count() }}</span>
+                @include('partials.print-summary-button', ['route' => 'asset-disposals.print-summary'])
+            </div>
         </div>
 
         <div class="table-responsive">

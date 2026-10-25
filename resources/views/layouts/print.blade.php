@@ -56,6 +56,11 @@
         table.data th, table.data td { padding: 0.35rem 0.5rem; border: 1px solid var(--line); text-align: left; vertical-align: top; }
         table.data thead th { background: var(--soft); font-weight: 600; white-space: nowrap; }
         table.data tfoot td, table.data tfoot th { background: var(--soft); font-weight: 700; }
+        .gain { color: #047857; }                /* positive change / gain on sale */
+        .loss { color: #b91c1c; }                /* negative change / loss on sale */
+        .tag { display: inline-block; padding: 0.05rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; border: 1px solid currentColor; }
+        .summary-totals { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; font-size: 0.85rem; }
+        .summary-totals strong { font-variant-numeric: tabular-nums; }
         thead { display: table-header-group; }   /* repeat the header row on every printed page */
         tfoot { display: table-footer-group; }
 
@@ -86,7 +91,7 @@
             .doc-footer { margin-top: 1.75rem; }
             table.details th, .total-row th, .total-row td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .signatures, table.details tr, table.data tr { break-inside: avoid; }
-            table.data thead th, table.data tfoot td, table.data tfoot th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            table.data thead th, table.data tfoot td, table.data tfoot th, .gain, .loss, .tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
     </style>
 </head>
