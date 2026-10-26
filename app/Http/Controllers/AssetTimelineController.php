@@ -199,14 +199,17 @@ class AssetTimelineController extends Controller
             foreach ($node->disposals as $disposal) {
                 $dispDate = $disposal->disposal_date ? Carbon::parse($disposal->disposal_date)->endOfDay() : Carbon::today()->endOfDay();
                 $statusLabel = ucfirst($disposal->approval_status ?? 'approved');
+                $isRejected = $disposal->approval_status === 'rejected';
                 $events[] = (object) [
                     'type' => 'disposed',
-                    'badge_class' => 'badge-danger',
-                    'badge_label' => 'Disposed (' . $statusLabel . ')',
+                    'badge_class' => $isRejected ? 'badge-secondary' : 'badge-danger',
+                    'badge_label' => $isRejected ? 'Disposal Rejected' : 'Disposed (' . $statusLabel . ')',
                     'date' => $disposal->disposal_date ?? '-',
                     'sort_time' => $dispDate->timestamp,
                     'sort_seq' => 90 + (int) $disposal->id,
-                    'title' => "Disposed {$node->asset_code} — {$disposal->method} ({$disposal->reference})",
+                    'title' => $isRejected
+                        ? "Disposal claim rejected for {$node->asset_code} — {$disposal->method} ({$disposal->reference})"
+                        : "Disposed {$node->asset_code} — {$disposal->method} ({$disposal->reference})",
                     'subtitle' => "Approval Status: {$statusLabel}",
                     'asset' => $node,
                     'transitions' => [],

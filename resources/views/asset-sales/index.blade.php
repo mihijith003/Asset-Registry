@@ -144,15 +144,18 @@
     </div>
 
     <!-- Sales Records Table -->
+    @include('partials.type-filter', ['fields' => $filterFields])
+
     <div class="card">
         <div class="card-header">
             <div>
                 <h3>Sales Records</h3>
                 <p>History of assets that have been sold.</p>
             </div>
-            <span style="font-size: 0.875rem; color: var(--text-muted);">
-                Total: {{ $sales->count() }}
-            </span>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $sales->count() }}</span>
+                @include('partials.print-summary-button', ['route' => 'asset-sales.print-summary'])
+            </div>
         </div>
 
         <div class="table-responsive">

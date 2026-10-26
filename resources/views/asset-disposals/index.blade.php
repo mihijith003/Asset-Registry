@@ -110,7 +110,7 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse(\App\Models\AssetDisposal::where('approval_status', 'pending')->get() as $pending)
+                @forelse($pendingDisposals as $pending)
                     <tr>
                         <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
                             {{ $pending->reference }}
@@ -131,17 +131,22 @@
                             {{ $pending->disposal_date ?? '-' }}
                         </td>
                         <td style="text-align: right;">
-                            <form action="{{ route('asset-disposals.approve', $pending->id) }}" method="POST" style="display:inline;">
+                            {{-- Both actions ask for an admin password (<x-admin-password-modal>) before submitting --}}
+                            <form id="approve-disposal-{{ $pending->id }}" action="{{ route('asset-disposals.approve', $pending->id) }}" method="POST" style="display:inline;">
                                 @csrf
                                 @method('PATCH')
                                 <button type="submit" class="btn btn-sm" style="background-color: var(--primary); color: white; border: none; padding: 0.25rem 0.75rem; border-radius: 4px;">Approve</button>
                             </form>
+                            <x-admin-password-modal form="approve-disposal-{{ $pending->id }}" />
 
-                            <form action="{{ route('asset-disposals.reject', $pending->id) }}" method="POST" style="display:inline;">
+                            <form id="reject-disposal-{{ $pending->id }}" action="{{ route('asset-disposals.reject', $pending->id) }}" method="POST" style="display:inline-flex; gap: 0.5rem; align-items: center; margin-left: 0.5rem;">
                                 @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm" style="background-color: #dc3545; color: white; border: none; padding: 0.25rem 0.75rem; border-radius: 4px; margin-left: 0.5rem;">Reject</button>
+                                @method('PATCH')
+                                <input type="text" name="rejection_reason" class="form-control" required maxlength="500"
+                                       placeholder="Reason for rejecting" aria-label="Reason for rejecting {{ $pending->reference }}" style="width: 220px;">
+                                <button type="submit" class="btn btn-sm" style="background-color: #dc3545; color: white; border: none; padding: 0.25rem 0.75rem; border-radius: 4px;">Reject</button>
                             </form>
+                            <x-admin-password-modal form="reject-disposal-{{ $pending->id }}" />
                         </td>
                     </tr>
                 @empty
@@ -159,15 +164,18 @@
 
 
     <!-- Disposals Table -->
+    @include('partials.type-filter', ['fields' => $filterFields])
+
     <div class="card">
         <div class="card-header">
             <div>
                 <h3>Disposal Records</h3>
                 <p>History of assets that have been disposed or retired.</p>
             </div>
-            <span style="font-size: 0.875rem; color: var(--text-muted);">
-                Total: {{ $disposals->count() }}
-            </span>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $disposals->count() }}</span>
+                @include('partials.print-summary-button', ['route' => 'asset-disposals.print-summary'])
+            </div>
         </div>
 
         <div class="table-responsive">
@@ -178,6 +186,7 @@
                         <th>Disposal ID</th>
                         <th>Asset Code</th>
                         <th>Method</th>
+                        <th>Status</th>
                         <th>Disposal Date</th>
                         {{-- NEW: shows the admin who authorized the disposal --}}
                         <th>Authorized By</th>
@@ -188,7 +197,7 @@
                 </thead>
                 <tbody>
                     @foreach ($disposals as $disposal)
-                        <tr>
+                        <tr @if ($disposal->approval_status === 'rejected') style="color: var(--text-muted);" @endif>
                             <td style="font-family: monospace; font-weight: 600; color: var(--primary);">
                                 {{ $disposal->reference }}
                             </td>
@@ -207,6 +216,19 @@
                             <td style="font-weight: 500;">
                                 {{ $disposal->method }}
                             </td>
+                            <td>
+                                @if ($disposal->approval_status === 'rejected')
+                                    {{-- kept as history: the claim was turned down and the asset stays in the registry --}}
+                                    <span class="badge badge-secondary" style="text-decoration: line-through;">Rejected</span>
+                                    @if ($disposal->rejection_reason)
+                                        <div style="font-size: 0.75rem; margin-top: 0.25rem; max-width: 220px;">Reason: {{ $disposal->rejection_reason }}</div>
+                                    @endif
+                                @elseif ($disposal->approval_status === 'pending')
+                                    <span class="badge badge-danger">Pending</span>
+                                @else
+                                    <span class="badge badge-success">Approved</span>
+                                @endif
+                            </td>
                             <td style="font-size: 0.875rem; color: var(--text-muted);">
                                 {{ $disposal->disposal_date ?? '-' }}
                             </td>
@@ -214,7 +236,7 @@
                             <td>
                                 {{ $disposal->authorized_by ?? '-' }}
                             </td>
-                            <td style="white-space: pre-line; max-width: 260px;">{{ $disposal->comments ?: '-' }}</td>
+                            <td style="white-space: pre-line; max-width: 260px;">{{ $disposal->notes ?: '-' }}</td>
                             {{-- NEW: opens the printable disposal record in a new tab --}}
                             <td style="text-align: right;">
                                 <a href="{{ route('asset-disposals.print', $disposal) }}" target="_blank" rel="noopener" class="btn btn-secondary">Print</a>

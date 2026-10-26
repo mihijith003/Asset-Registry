@@ -69,9 +69,10 @@
             <h3>Asset Types</h3>
             <p>All registered asset types and their associated sub types and assets.</p>
         </div>
-        <span style="font-size: 0.875rem; color: var(--text-muted);">
-            Total: {{ $assetTypes->count() }}
-        </span>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $assetTypes->count() }}</span>
+            @include('partials.print-summary-button', ['route' => 'master-files.print', 'params' => ['tab' => 'asset-types']])
+        </div>
     </div>
 
     <div class="table-responsive">

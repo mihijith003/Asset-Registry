@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\FiltersByAssetType;
 use App\Models\ActivityLog;
 use App\Models\Asset;
 use App\Models\AssetType;
@@ -16,16 +17,22 @@ use Illuminate\View\View;
 
 class AssetController extends Controller
 {
+    use FiltersByAssetType;
+
     /**
      * Display a listing of assets and registration form.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
+        $filters = $this->typeFilters($request);
+
         // NEW: allocations (newest first = current + history); originAsset / removalModification trace removed components
-        $assets = Asset::with(['assetType', 'brand', 'components.brand', 'allocations', 'originAsset', 'removalModification.asset', 'layers', 'modifications', 'supersedes', 'revaluationIn.asset'])
-            ->active()
+        $assets = $this->applyTypeFilter(
+            Asset::with(['assetType', 'brand', 'components.brand', 'allocations', 'originAsset', 'removalModification.asset', 'layers', 'modifications', 'supersedes', 'revaluationIn.asset'])->active(),
+            $filters
+        )
             ->orderByDesc('id')
-            ->get(); 
+            ->get();
 
         $assetTypes = AssetType::orderBy('type_name')->get();
         $assetSubTypes = \App\Models\AssetSubType::all();
@@ -36,6 +43,23 @@ class AssetController extends Controller
         $currentFinancialYear = Depreciation::label(Depreciation::financialYearOf());
 
         return view('assets.index', compact('assets', 'assetTypes', 'assetSubTypes', 'brands', 'financialYears', 'currentFinancialYear'));
+    }
+
+    /**
+     * Printable "Asset Register": the same current assets and filters as the registry list.
+     */
+    public function print(Request $request): View
+    {
+        $filters = $this->typeFilters($request);
+
+        $assets = $this->applyTypeFilter(
+            Asset::with(['assetType', 'subType', 'brand', 'allocations', 'layers'])->active(),
+            $filters
+        )
+            ->orderBy('asset_code')
+            ->get();
+
+        return view('assets.print', compact('assets'));
     }
 
     /**

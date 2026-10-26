@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\FiltersByAssetType;
 use App\Models\Asset;
 use App\Models\AssetModification;
 use App\Models\AssetSubType;
@@ -17,16 +18,78 @@ use App\Models\ActivityLog;
 
 class AssetModificationController extends Controller
 {
+    use FiltersByAssetType;
+
     /**
      * Display a listing of asset modifications and the modification form.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
-        $modifications = AssetModification::with(['asset', 'componentAsset', 'resultAsset', 'removedAsset'])
+        $filters = $this->eventFilters($request, $this->extraFilterRules());
+        $modifications = $this->filteredModifications($filters)
             ->orderByDesc('id')
             ->get(); // DataTables does the paging/search/sort in the browser
 
-        return view('asset-modifications.index', ['modifications' => $modifications] + $this->formData());
+        return view('asset-modifications.index', [
+            'modifications' => $modifications,
+            'filterFields' => $this->filterFields($filters),
+        ] + $this->formData());
+    }
+
+    /**
+     * "Modification History": the modifications on the screen list (same filters), with the cost change.
+     */
+    public function printSummary(Request $request): View
+    {
+        $filters = $this->eventFilters($request, $this->extraFilterRules());
+        $modifications = $this->filteredModifications($filters)->orderBy('modification_date')->orderBy('id')->get();
+
+        $rows = $modifications->map(function (AssetModification $mod) {
+            $before = $mod->parent_original_cost !== null ? (float) $mod->parent_original_cost : null;
+            $after = $mod->new_value !== null ? (float) $mod->new_value : null;
+
+            return (object) [
+                'mod' => $mod,
+                'before' => $before,
+                'after' => $after,
+                'change' => $before !== null && $after !== null ? round($after - $before, 2) : null,
+            ];
+        });
+
+        $totals = (object) [
+            'upgrades' => $rows->filter(fn ($r) => $r->mod->modification_type === 'upgrade')->count(),
+            'downgrades' => $rows->filter(fn ($r) => $r->mod->modification_type === 'downgrade')->count(),
+            'change' => round($rows->sum('change'), 2),
+            'unknown' => $rows->whereNull('change')->count(),
+        ];
+        $period = $this->periodLabel($filters);
+        $typeLabel = $filters['modification_type'] ? ucfirst($filters['modification_type']) : null;
+
+        return view('asset-modifications.print-summary', compact('rows', 'totals', 'period', 'typeLabel'));
+    }
+
+    private function extraFilterRules(): array
+    {
+        return ['modification_type' => 'nullable|in:' . implode(',', AssetModification::TYPES)];
+    }
+
+    private function filterFields(array $filters): array
+    {
+        return array_merge($this->dateFilterFields($filters), [[
+            'name' => 'modification_type', 'label' => 'Modification Type', 'type' => 'select',
+            'options' => ['' => 'All'] + collect(AssetModification::TYPES)->mapWithKeys(fn ($t) => [$t => ucfirst($t)])->all(),
+        ]]);
+    }
+
+    private function filteredModifications(array $filters)
+    {
+        // All four asset relations are withTrashed(): the parent and component are merged away by the modification.
+        $query = AssetModification::with(['asset.assetType', 'asset.subType', 'asset.brand', 'componentAsset', 'resultAsset', 'removedAsset'])
+            ->when($filters['modification_type'], fn ($q, $type) => $q->where('modification_type', $type));
+
+        $this->applyTypeFilter($query, $filters, 'asset');
+
+        return $this->applyDateFilter($query, $filters, 'modification_date');
     }
 
     /**
@@ -48,7 +111,7 @@ class AssetModificationController extends Controller
      */
     private function formData(): array
     {
-        $assets = Asset::active()->with('components')->orderBy('asset_code')->get();
+        $assets = Asset::active()->with(['components', 'brand'])->orderBy('asset_code')->get();
         $components = $assets;
 
         $partOptions = $assets

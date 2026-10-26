@@ -48,6 +48,7 @@ Route::middleware('auth')->group(function () {
 // Staff & Admin can access these
 Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
+    Route::get('/assets/print', [AssetController::class, 'print'])->name('assets.print');
     Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
     Route::get('/assets/{asset}/timeline', [AssetTimelineController::class, 'show'])->withTrashed()->name('assets.timeline');
     // NEW: allocate an asset to a branch or an employee (same permission as the registry)
@@ -55,6 +56,7 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
 
     // Master files (Asset Types, Sub Types, Brands)
     Route::get('/master-files', [MasterFileController::class, 'index'])->name('master-files.index');
+    Route::get('/master-files/print', [MasterFileController::class, 'print'])->name('master-files.print');
     Route::post('/asset-types', [AssetTypeController::class, 'store'])->name('asset-types.store');
     Route::patch('/asset-types/{id}', [AssetTypeController::class, 'update'])->name('asset-types.update');
     Route::delete('/asset-types/{id}', [AssetTypeController::class, 'destroy'])->name('asset-types.destroy');
@@ -74,6 +76,7 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {
     Route::get('/asset-modifications', [AssetModificationController::class, 'index'])->name('asset-modifications.index');
+    Route::get('/asset-modifications/print', [AssetModificationController::class, 'printSummary'])->name('asset-modifications.print-summary');
     
     // Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->name('asset-modifications.store');
     Route::post('/asset-modifications', [AssetModificationController::class, 'store'])->middleware('throttle:10,1')->name('asset-modifications.store');
@@ -81,34 +84,37 @@ Route::middleware(['auth', 'permission:modify assets'])->group(function () {
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {
     Route::get('/asset-revaluations', [AssetRevaluationController::class, 'index'])->name('asset-revaluations.index');
+    Route::get('/asset-revaluations/print', [AssetRevaluationController::class, 'printSummary'])->name('asset-revaluations.print-summary');
     Route::post('/asset-revaluations', [AssetRevaluationController::class, 'store'])->middleware('throttle:10,1')->name('asset-revaluations.store');
 });
 
 // ONLY Admin can access these
 Route::middleware(['auth', 'permission:sell assets'])->group(function () {
     Route::get('/asset-sales', [AssetSaleController::class, 'index'])->name('asset-sales.index');
+    Route::get('/asset-sales/print', [AssetSaleController::class, 'printSummary'])->name('asset-sales.print-summary');
     
     // Route::post('/asset-sales', [AssetSaleController::class, 'store'])->name('asset-sales.store');
     Route::post('/asset-sales', [AssetSaleController::class, 'store'])->middleware('throttle:10,1')->name('asset-sales.store');
 
-    // NEW: printable sale voucher (same 'sell assets' permission as the rest of the sales pages)
+    // Printable sale voucher (same 'sell assets' permission as the rest of the sales pages)
     Route::get('/asset-sales/{sale}/print', [AssetSaleController::class, 'print'])->name('asset-sales.print');
 });
 
 Route::middleware(['auth', 'permission:dispose assets'])->group(function () {
     Route::get('/asset-disposals', [AssetDisposalController::class, 'index'])->name('asset-disposals.index');
+    Route::get('/asset-disposals/print', [AssetDisposalController::class, 'printSummary'])->name('asset-disposals.print-summary');
     
     // Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->name('asset-disposals.store');
     Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->middleware('throttle:10,1')->name('asset-disposals.store');
 
-    // NEW: printable disposal record (same 'dispose assets' permission as the rest of the disposal pages)
+    //Printable disposal record (same 'dispose assets' permission as the rest of the disposal pages)
     Route::get('/asset-disposals/{disposal}/print', [AssetDisposalController::class, 'print'])->name('asset-disposals.print');
 
-    // NEW: approve a pending lost item claim
+    // Approve a pending lost item claim
     Route::patch('/asset-disposals/{id}/approve', [AssetDisposalController::class, 'approve'])->name('asset-disposals.approve');
 
-    // NEW: reject a pending lost item claim
-    Route::delete('/asset-disposals/{id}/reject', [AssetDisposalController::class, 'reject'])->name('asset-disposals.reject');
+    // Reject a pending lost item claim
+    Route::patch('/asset-disposals/{id}/reject', [AssetDisposalController::class, 'reject'])->name('asset-disposals.reject');
 });
 
     

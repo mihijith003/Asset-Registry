@@ -113,9 +113,31 @@
             <h3>Asset Sub Types</h3>
             <p>All registered asset sub types and their asset counts.</p>
         </div>
-        <span style="font-size: 0.875rem; color: var(--text-muted);">
-            Total: {{ $assetSubTypes->count() }}
-        </span>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $assetSubTypes->count() }}</span>
+            @include('partials.print-summary-button', ['route' => 'master-files.print', 'params' => ['tab' => 'sub-types']])
+        </div>
+    </div>
+
+    {{-- Asset Type filter (GET, kept in the query string so Print Summary prints the same list) --}}
+    @php $filterTypeId = (string) request()->query('asset_type_id', ''); @endphp
+    <div class="card-body" style="border-bottom: 1px solid var(--border-color);">
+        <form method="GET" action="{{ route('master-files.index') }}" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem;">
+            <input type="hidden" name="tab" value="sub-types">
+            <div class="form-group" style="margin-bottom: 0; min-width: 220px;">
+                <label class="form-label" for="mf_filter_asset_type_id">Asset Type</label>
+                <select name="asset_type_id" id="mf_filter_asset_type_id" class="form-select">
+                    <option value="">All types</option>
+                    @foreach ($assetTypes as $type)
+                        <option value="{{ $type->id }}" {{ $filterTypeId === (string) $type->id ? 'selected' : '' }}>{{ $type->type_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <button type="submit" class="btn btn-primary">Apply</button>
+                <a href="{{ route('master-files.index', ['tab' => 'sub-types']) }}" class="btn btn-secondary">Clear</a>
+            </div>
+        </form>
     </div>
 
     <div class="table-responsive">
