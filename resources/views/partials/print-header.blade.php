@@ -5,9 +5,11 @@
     @include('partials.print-header', [
         'title'   => 'Asset Sales',
         'filters' => ['Period' => '2026-04-01 to 2027-03-31'],   // optional extra filters; null/'' shows "All"
+        'typeFilters' => ['Type', 'Sub Type'],                    // optional: which of these to show (default both, [] = none)
     ])
 
-    Type and Sub Type are read from the query string (asset_type_id / asset_sub_type_id) and always shown.
+    Type and Sub Type are read from the query string (asset_type_id / asset_sub_type_id). With no filters at all the
+    line reads "Filters: None".
     Styles are inline because layouts.print does not load the Vite assets.
 --}}
 @php
@@ -17,10 +19,11 @@
     $typeName = $typeId && $typeId !== 'all' ? optional(\App\Models\AssetType::find($typeId))->type_name : null;
     $subTypeName = $subTypeId && $subTypeId !== 'all' ? optional(\App\Models\AssetSubType::find($subTypeId))->sub_type_name : null;
 
-    $applied = ['Type' => $typeName, 'Sub Type' => $subTypeName ? trim($subTypeName) : null] + ($filters ?? []);
+    $typeLabels = ['Type' => $typeName, 'Sub Type' => $subTypeName ? trim($subTypeName) : null];
+    $applied = array_intersect_key($typeLabels, array_flip($typeFilters ?? ['Type', 'Sub Type'])) + ($filters ?? []);
     $summary = collect($applied)
         ->map(fn ($value, $label) => $label . ': ' . (($value === null || $value === '') ? 'All' : $value))
-        ->join(' | ');
+        ->join(' | ') ?: 'Filters: None';
 @endphp
 
 @once

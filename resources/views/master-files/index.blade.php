@@ -13,7 +13,8 @@
             } elseif ($hasErrors && $errors->brand->any()) {
                 $activeTab = 'brands';
             } else {
-                $activeTab = 'asset-types';
+                // ?tab=.. from a link or the Sub Types filter, validated in the controller
+                $activeTab = $requestedTab ?? 'asset-types';
             }
         }
     @endphp

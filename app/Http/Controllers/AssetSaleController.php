@@ -9,6 +9,8 @@ use App\Support\AdminAuthorization; // NEW: admin-password check
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule; // NEW: for the merged-asset check
 use Illuminate\View\View;
 
@@ -77,7 +79,7 @@ class AssetSaleController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'asset_id' => ['required', Rule::exists('assets', 'id')->whereNull('merged_into_asset_id')->whereNull('superseded_by_asset_id')],
+            'asset_id' => ['required', 'exists:assets,id'], // availability is checked under a lock below
             'buyer_name' => ['required', 'string', 'max:150'],
             'buyer_contact' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -95,16 +97,28 @@ class AssetSaleController extends Controller
                 ->withErrors(['admin_password' => 'Incorrect admin password. The sale was not recorded.']);
         }
 
-        $sale = AssetSale::create([
-            'asset_id' => $validated['asset_id'],
-            'sale_date' => now()->toDateString(),
-            'buyer_name' => $validated['buyer_name'],
-            'buyer_contact' => $validated['buyer_contact'] ?? null,
-            'payment_method' => $validated['payment_method'] ?? null,
-            'price' => $validated['price'],
-            'authorized_by' => $admin->name,
-            'comments' => $validated['comments'] ?? null,
-        ]);
+        try {
+            $sale = DB::transaction(function () use ($validated, $admin) {
+                // Re-check, under a lock, that the asset is still active (not sold / disposed / revalued / combined).
+                if (! Asset::findActiveForUpdate($validated['asset_id'])) {
+                    throw ValidationException::withMessages(['asset_id' => Asset::UNAVAILABLE_MESSAGE]);
+                }
+
+                return AssetSale::create([
+                    'asset_id' => $validated['asset_id'],
+                    'sale_date' => now()->toDateString(),
+                    'buyer_name' => $validated['buyer_name'],
+                    'buyer_contact' => $validated['buyer_contact'] ?? null,
+                    'payment_method' => $validated['payment_method'] ?? null,
+                    'price' => $validated['price'],
+                    'authorized_by' => $admin->name,
+                    'comments' => $validated['comments'] ?? null,
+                ]);
+            });
+        } catch (ValidationException $e) {
+            // Handled here (not by the exception handler) so the admin password is never flashed back.
+            return back()->withInput($request->except('admin_password'))->withErrors($e->errors());
+        }
 
         
         return redirect()->route('asset-sales.index')

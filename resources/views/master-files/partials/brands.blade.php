@@ -47,9 +47,10 @@
             <h3>Brands</h3>
             <p>All registered brands and their associated asset counts.</p>
         </div>
-        <span style="font-size: 0.875rem; color: var(--text-muted);">
-            Total: {{ $brands->count() }}
-        </span>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $brands->count() }}</span>
+            @include('partials.print-summary-button', ['route' => 'master-files.print', 'params' => ['tab' => 'brands']])
+        </div>
     </div>
 
     <div class="table-responsive">

@@ -40,7 +40,13 @@
             <tr><th>Asset</th><td>Asset #{{ $disposal->asset_id }} (no longer in the registry)</td></tr>
         @endif
     </table>
-    <p class="note">The asset has been removed from the active asset registry as a result of this disposal.</p>
+    @if ($disposal->approval_status === 'rejected')
+        <p class="note"><strong>REJECTED</strong> - this disposal claim was rejected; the asset remains in the active asset registry.</p>
+    @elseif ($disposal->approval_status === 'pending')
+        <p class="note"><strong>PENDING APPROVAL</strong> - this disposal has not yet been approved by an admin.</p>
+    @else
+        <p class="note">The asset has been removed from the active asset registry as a result of this disposal.</p>
+    @endif
 
     <div class="signatures">
         <div class="signature">

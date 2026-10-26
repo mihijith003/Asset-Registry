@@ -62,9 +62,25 @@ class Asset extends Model
     public function scopeActive($query)
     {
         return $query->doesntHave('sale')
-            ->doesntHave('disposal')
+            // A REJECTED disposal (a Lost claim an admin turned down) does not count: the asset is still held.
+            ->whereDoesntHave('disposals', fn ($q) => $q->where('approval_status', '!=', 'rejected'))
             ->whereNull('merged_into_asset_id')
             ->whereNull('superseded_by_asset_id');
+    }
+
+    public const UNAVAILABLE_MESSAGE = 'This asset is no longer available (it may have been sold, disposed of, revalued or combined).';
+
+    /**
+     * The asset if it is still active, for an action about to write against it. MUST be called inside
+     * DB::transaction(): the row is locked first, so a second user acting on the same asset waits until the first
+     * commits, and the active() check that follows then sees their sale / disposal / revaluation.
+     * (Locking first matters: a plain read inside the transaction would use a snapshot that predates the other write.)
+     */
+    public static function findActiveForUpdate($id): ?self
+    {
+        static::withTrashed()->whereKey($id)->lockForUpdate()->first();
+
+        return static::active()->find($id);
     }
 
     /**
@@ -185,7 +201,7 @@ class Asset extends Model
     }
 
     /**
-     * NEW: net book value (cost less accumulated depreciation) as of a date (today by default).
+     * NEW: net book value (cost - accumulated depreciation) as of a date (today by default).
      * Excludes superseded depreciation layers (with end_date set).
      */
     public function netBookValue(?\Illuminate\Support\Carbon $asOf = null): float
@@ -240,7 +256,7 @@ class Asset extends Model
     {
         $visited = [$this->id => true];
 
-        // 1. Walk forwards along superseded_by_asset_id and merged_into_asset_id to the current asset
+        // Move forwards along superseded_by_asset_id and merged_into_asset_id to the current asset
         $cursor = $this;
         $maxSteps = 500;
         while ($cursor && $maxSteps-- > 0) {
@@ -258,7 +274,7 @@ class Asset extends Model
             $cursor = $next;
         }
 
-        // 2. Walk backwards from all discovered nodes to every predecessor (and any removed components branching off)
+        // Move backwards from all discovered nodes to every predecessor (and any removed components branching off)
         $frontier = array_keys($visited);
         $maxIterations = 500;
         while (! empty($frontier) && $maxIterations-- > 0) {
@@ -379,8 +395,12 @@ class Asset extends Model
         return $this->hasOne(AssetSale::class, 'asset_id');
     }
 
+    /**
+     * The asset's effective disposal: pending or approved. A rejected claim is history only (see disposals()),
+     * so it does not make the asset "Disposed" anywhere (depreciation, timeline status, registry).
+     */
     public function disposal()
     {
-        return $this->hasOne(AssetDisposal::class, 'asset_id');
+        return $this->hasOne(AssetDisposal::class, 'asset_id')->where('approval_status', '!=', 'rejected');
     }
 }

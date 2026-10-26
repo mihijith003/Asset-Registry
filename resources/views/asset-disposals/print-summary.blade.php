@@ -51,10 +51,13 @@
     </table>
 
     <div class="summary-totals">
-        <span>Disposals: <strong>{{ $rows->count() }}</strong></span>
+        <span>Disposals: <strong>{{ $rows->count() - $totals->rejected_count }}</strong></span>
         @foreach ($totals->by_method as $method => $count)
             <span>{{ $method }}: <strong>{{ $count }}</strong></span>
         @endforeach
+        @if ($totals->rejected_count)
+            <span>Rejected claims (not disposals, not counted above): <strong>{{ $totals->rejected_count }}</strong></span>
+        @endif
         @if ($totals->pending_count)
             <span>Pending approval (not yet written off): <strong>{{ $totals->pending_count }}</strong>,
                 net book value <strong>{{ number_format($totals->pending_book_value, 2) }}</strong></span>

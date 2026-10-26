@@ -43,7 +43,7 @@ class AssetModification extends Model
     }
 
     /**
-     * NEW: the component that was added to the parent (e.g. the motherboard).
+      *the component that was added to the parent (e.g. the motherboard).
      */
     public function componentAsset()
     {
@@ -51,7 +51,7 @@ class AssetModification extends Model
     }
 
     /**
-     * NEW: the combined asset created by this modification (gone once the modification is reverted).
+     * The combined asset created by this modification (gone once the modification is reverted).
      */
     public function resultAsset()
     {

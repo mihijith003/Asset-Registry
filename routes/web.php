@@ -56,6 +56,7 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
 
     // Master files (Asset Types, Sub Types, Brands)
     Route::get('/master-files', [MasterFileController::class, 'index'])->name('master-files.index');
+    Route::get('/master-files/print', [MasterFileController::class, 'print'])->name('master-files.print');
     Route::post('/asset-types', [AssetTypeController::class, 'store'])->name('asset-types.store');
     Route::patch('/asset-types/{id}', [AssetTypeController::class, 'update'])->name('asset-types.update');
     Route::delete('/asset-types/{id}', [AssetTypeController::class, 'destroy'])->name('asset-types.destroy');
@@ -95,7 +96,7 @@ Route::middleware(['auth', 'permission:sell assets'])->group(function () {
     // Route::post('/asset-sales', [AssetSaleController::class, 'store'])->name('asset-sales.store');
     Route::post('/asset-sales', [AssetSaleController::class, 'store'])->middleware('throttle:10,1')->name('asset-sales.store');
 
-    // NEW: printable sale voucher (same 'sell assets' permission as the rest of the sales pages)
+    // Printable sale voucher (same 'sell assets' permission as the rest of the sales pages)
     Route::get('/asset-sales/{sale}/print', [AssetSaleController::class, 'print'])->name('asset-sales.print');
 });
 
@@ -106,14 +107,14 @@ Route::middleware(['auth', 'permission:dispose assets'])->group(function () {
     // Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->name('asset-disposals.store');
     Route::post('/asset-disposals', [AssetDisposalController::class, 'store'])->middleware('throttle:10,1')->name('asset-disposals.store');
 
-    // NEW: printable disposal record (same 'dispose assets' permission as the rest of the disposal pages)
+    //Printable disposal record (same 'dispose assets' permission as the rest of the disposal pages)
     Route::get('/asset-disposals/{disposal}/print', [AssetDisposalController::class, 'print'])->name('asset-disposals.print');
 
-    // NEW: approve a pending lost item claim
+    // Approve a pending lost item claim
     Route::patch('/asset-disposals/{id}/approve', [AssetDisposalController::class, 'approve'])->name('asset-disposals.approve');
 
-    // NEW: reject a pending lost item claim
-    Route::delete('/asset-disposals/{id}/reject', [AssetDisposalController::class, 'reject'])->name('asset-disposals.reject');
+    // Reject a pending lost item claim
+    Route::patch('/asset-disposals/{id}/reject', [AssetDisposalController::class, 'reject'])->name('asset-disposals.reject');
 });
 
     
