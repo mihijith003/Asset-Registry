@@ -5,56 +5,7 @@
 -- dependency matrix), so every column the application actually reads or
 -- writes is present. v2 is superseded and should be discarded: it was
 -- written from an incomplete summary and dropped working features.
---
--- ---------------------------------------------------------------------
--- RUN ORDER — this matters
---   1. In phpMyAdmin:   DROP DATABASE IF EXISTS asset_management;
---                       CREATE DATABASE asset_management
---                         CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
---   2. In the terminal: php artisan migrate
---      (creates users, password_reset_tokens, failed_jobs,
---       personal_access_tokens and the 5 Spatie tables)
---   3. Run THIS FILE.
---   4. php artisan db:seed
---
--- This file deliberately does NOT drop the database or touch Laravel's
--- own tables. It owns the 12 application tables and nothing else, so it
--- can be re-run without destroying your login. activity_logs has a real
--- FK to users, which is why migrate must run first.
---
--- Keep these 5 migration files, delete every other one:
---   2014_10_12_000000_create_users_table.php
---   2014_10_12_100000_create_password_reset_tokens_table.php
---   2019_08_19_000000_create_failed_jobs_table.php
---   2019_12_14_000001_create_personal_access_tokens_table.php
---   2026_10_08_121902_create_permission_tables.php
--- (i.e. rm database/migrations/2026_10_1*.php — that glob spares
---  create_permission_tables, which is dated 10_08.)
---
--- ---------------------------------------------------------------------
--- THE FOUR DECISIONS, AS TAKEN
---   1. Trigger trg_asset_modifications_after_insert: DROPPED. The
---      combine-into-new-asset flow supersedes it, and it corrupted the
---      parent_original_cost the code saves on purpose.
---   2. Engine: InnoDB throughout, with real foreign keys. Everything was
---      MyISAM before, so every FK was silently ignored and
---      DB::transaction() in AssetModificationController was a no-op.
---      ON DELETE RESTRICT on event rows (history must not vanish),
---      SET NULL on nullable/self references. Assets are soft-deleted,
---      not deleted, so RESTRICT should never fire in normal use.
---   3. sales_ID -> sale_id and authorized_BY -> authorized_by. Three
---      code sites change; two model mutators become unnecessary.
---   4. assets.brand_id added (FK to brands), brand_name KEPT as a
---      nullable free-text fallback so existing code and data still work
---      while the Brand master is wired up.
---
--- Also standardised: every PK and FK is BIGINT UNSIGNED. The old mix of
--- int and bigint was harmless under MyISAM but real FKs require the
--- types to match exactly.
---
--- ---------------------------------------------------------------------
--- CODE CHANGES THIS SCHEMA REQUIRES — see the notes at the bottom.
--- =====================================================================
+
 
 USE asset_management;
 
@@ -74,7 +25,7 @@ DROP TABLE IF EXISTS asset_sub_types;
 DROP TABLE IF EXISTS asset_types;
 DROP TABLE IF EXISTS brands;
 
-SET FOREIGN_KEY_CHECKS = 1;
+SET FOREIGN_KEY_CHECKS=1;
 
 -- ---------------------------------------------------------------------
 -- MASTER FILES  (boss item 1)
@@ -120,17 +71,11 @@ CREATE TABLE brands (
 
 CREATE TABLE assets (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
-    -- NEW FORMAT (boss item 4): <type_code>-<sub_type_code>-<nnn>,
-    -- e.g. EL-LAP-001. Counter runs per (asset_type_id, asset_sub_type_id).
-    -- Old format was AST-YYYY-XXXXX. See code note C1.
     asset_code VARCHAR(50) NOT NULL,
 
     asset_type_id BIGINT UNSIGNED NOT NULL,
     asset_sub_type_id BIGINT UNSIGNED NOT NULL,
 
-    -- Decision 4: brand_id is the master-file link; brand_name stays as a
-    -- free-text fallback for assets whose brand isn't in the master yet.
     brand_id BIGINT UNSIGNED NULL,
     brand_name VARCHAR(100) NULL,
 
@@ -138,46 +83,23 @@ CREATE TABLE assets (
 
     -- Procurement fields (boss item 2)
     purchase_date DATE NULL,
-    supplier VARCHAR(150) NULL,          -- plain text; promote to a
-                                         -- suppliers master later if asked
+    supplier VARCHAR(150) NULL,         
     po_reference VARCHAR(100) NULL,
     invoice_reference VARCHAR(100) NULL,
     financial_year VARCHAR(9) NULL,      -- e.g. 2026/2027
-
-    -- Legacy free-text location. Superseded by asset_allocations but
-    -- still read as a fallback by Asset::getLocationLabelAttribute().
     location VARCHAR(150) NULL,
-
     cost DECIMAL(12,2) NOT NULL,
-
-    -- Depreciation inputs (boss item 2). The real schedule lives in
-    -- asset_depreciation_layers; these two are per-asset overrides.
-    --   useful_life_months NULL -> fall back to the sub type's
-    --     useful_life_years * 12 (current behaviour).
-    --   residual_value is the "Depreciation Value" at end of life.
-    --     NOTE: App\Support\Depreciation currently assumes zero residual
-    --     and ignores this column. See code note C4.
     useful_life_months SMALLINT UNSIGNED NULL,
     residual_value DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-
     comments TEXT NULL,
-
-    -- Combination tracking: set on the two originals when they are merged
-    -- into a new combined asset. NULL = visible in the registry.
     merged_into_asset_id BIGINT UNSIGNED NULL,
     supereseded_by_asset_id BIGINT UNSIGNED NULL,
-
-    -- For a component removed during a modification: the asset it came
-    -- out of originally.
     origin_asset_id BIGINT UNSIGNED NULL,
-
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP NULL,           -- SoftDeletes. Mandatory: the
-                                         -- Asset model's global scope adds
-                                         -- `deleted_at IS NULL` to EVERY query.
-
+    deleted_at TIMESTAMP NULL,           
     UNIQUE KEY uq_assets_code (asset_code),
+
     CONSTRAINT fk_assets_type FOREIGN KEY (asset_type_id)
         REFERENCES asset_types(id) ON DELETE RESTRICT,
     CONSTRAINT fk_assets_sub_type FOREIGN KEY (asset_sub_type_id)
@@ -190,6 +112,7 @@ CREATE TABLE assets (
         REFERENCES assets(id) ON DELETE SET NULL,
     CONSTRAINT fk_assets_supereseded_by FOREIGN KEY (supereseded_by_asset_id)
         REFERENCES assets(id) ON DELETE SET NULL,
+
     KEY idx_assets_superseded_by (superseded_by_asset_id),
 
     -- supports the per type+subtype counter that builds asset_code
@@ -226,19 +149,17 @@ CREATE TABLE asset_allocations (
 CREATE TABLE asset_depreciation_layers (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     asset_id BIGINT UNSIGNED NOT NULL,
-    source_asset_id BIGINT UNSIGNED NULL,        -- which registered asset
-                                                 -- this slice came from
+    source_asset_id BIGINT UNSIGNED NULL,        
     cost DECIMAL(12,2) NOT NULL,
     start_date DATE NOT NULL,
-    -- The layer stops accruing depreciation on this date. Set when the asset
-    -- is revalued, so the superseded layer and the new one do not double
-    -- count. NULL = runs for its full useful life.
     end_date DATE NULL,
     useful_life_months INT UNSIGNED NULL,        -- NULL = not depreciated
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
     CONSTRAINT fk_layers_asset FOREIGN KEY (asset_id)
         REFERENCES assets(id) ON DELETE RESTRICT,
+
     CONSTRAINT fk_layers_source FOREIGN KEY (source_asset_id)
         REFERENCES assets(id) ON DELETE SET NULL,
     KEY idx_layers_asset (asset_id),
@@ -255,33 +176,25 @@ CREATE TABLE asset_modifications (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
     asset_id BIGINT UNSIGNED NOT NULL,           -- the parent asset
-    component_asset_id BIGINT UNSIGNED NULL,     -- asset that was added
+    component_asset_id BIGINT UNSIGNED NULL,     --  that was added
     result_asset_id BIGINT UNSIGNED NULL,        -- new combined asset
     removed_asset_id BIGINT UNSIGNED NULL,       -- asset created/restored
                                                  -- for the removed part
 
     modification_date DATE NOT NULL,
+    modification_type VARCHAR(20) NULL,          
 
-    -- boss item 6: two radio buttons. 'replacement' is kept in the column
-    -- width but should be dropped from the form's options. See code note C3.
-    modification_type VARCHAR(20) NULL,          -- 'upgrade' | 'downgrade'
-
-    removed_asset VARCHAR(150) NULL,             -- display text
-    added_asset VARCHAR(150) NULL,               -- display text
+    removed_asset VARCHAR(150) NULL,             
+    added_asset VARCHAR(150) NULL,               
     removed_price DECIMAL(12,2) NULL,
-
     new_value DECIMAL(12,2) NULL,                -- combined cost after
     new_location VARCHAR(150) NULL,
-
-    -- Preserved so a revert can restore exact prices.
     parent_original_cost DECIMAL(12,2) NULL,
     component_original_cost DECIMAL(12,2) NULL,
-
     authorized_by VARCHAR(150) NULL,
     comments TEXT NULL,
     reverted_at TIMESTAMP NULL,
 
-    -- No created_at/updated_at: AssetModification has $timestamps = false.
 
     CONSTRAINT fk_mods_asset FOREIGN KEY (asset_id)
         REFERENCES assets(id) ON DELETE RESTRICT,
@@ -319,9 +232,11 @@ CREATE TABLE asset_revaluations (
                                                  -- item, link it here
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
     CONSTRAINT fk_revals_asset FOREIGN KEY (asset_id)
         REFERENCES assets(id) ON DELETE RESTRICT,
     KEY idx_revals_history (asset_id, revaluation_date),
+
     CONSTRAINT fk_revals_result FOREIGN KEY (result_asset_id)
         REFERENCES assets(id) ON DELETE SET NULL,
     KEY idx_revals_result (result_asset_id)
@@ -342,8 +257,6 @@ CREATE TABLE asset_sales (
     price DECIMAL(12,2) NOT NULL,
     authorized_by VARCHAR(150) NULL,
     comments TEXT NULL,
-
-    -- No timestamps: AssetSale has $timestamps = false.
 
     CONSTRAINT fk_sales_asset FOREIGN KEY (asset_id)
         REFERENCES assets(id) ON DELETE RESTRICT,
@@ -393,10 +306,7 @@ CREATE TABLE activity_logs (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------
--- STARTER MASTER DATA
--- Clean replacements for the old dirty rows ('Laptop\r\n', type codes
--- '1' and '2'). Edit freely — these only exist so the registry form has
--- something in its dropdowns.
+--Data Insertions
 -- ---------------------------------------------------------------------
 
 INSERT INTO asset_types (type_name, type_code) VALUES
@@ -405,86 +315,18 @@ INSERT INTO asset_types (type_name, type_code) VALUES
     ('Vehicles',    'VE');
 
 INSERT INTO asset_sub_types (asset_type_id, sub_type_name, sub_type_code, useful_life_years) VALUES
-    (1, 'Laptop',    'LAP', 5),
-    (1, 'Desktop',   'DES', 5),
-    (1, 'Printer',   'PRN', 5),
-    (1, 'Monitor',   'MON', 5),
+    (1, 'Laptop',    'LAP', 3),
+    (1, 'Desktop',   'DES', 3),
+    (1, 'Printer',   'PRN', 3),
+    (1, 'Monitor',   'MON', 3),
+    (1, 'SSD',       'SSD', 3),
     (2, 'Chair',     'CHR', 3),
     (2, 'Desk',      'DSK', 3),
     (2, 'Cabinet',   'CAB', 3),
-    (3, 'Car',       'CAR', 8),
-    (3, 'Motorbike', 'MOT', 8);
+    (3, 'Car',       'CAR', 5),
+    (3, 'Motorbike', 'MOT', 5);
 
 INSERT INTO brands (name) VALUES
-    ('Dell'), ('HP'), ('Lenovo'), ('Asus'), ('Canon'), ('Toyota');
+    ('Dell'), ('HP'), ('Lenovo'), ('Asus'), ('Canon'), ('Toyota'), ('Damro');
 
--- =====================================================================
--- CODE CHANGES THIS SCHEMA REQUIRES
---
--- BLOCKING — a fresh database is unusable without these two:
---
---   B1. app/Models/User.php
---       $fillable is ['type_code','type_name'] (pasted from AssetType).
---       Change to ['name','email','password'] or registration inserts
---       nothing and fails.
---
---   B2. database/seeders/RoleAndPermissionSeeder.php
---       Creates 10 permissions ('view assets', 'create assets', ...) that
---       no route uses. The routes require exactly these four:
---           register assets, modify assets, sell assets, dispose assets
---       Give Admin all four; Staff 'register assets' and 'modify assets'.
---       Without this every business route 403s, Admin included.
---
--- SCHEMA-DRIVEN — needed because of the four decisions:
---
---   C1. Asset code format -> EL-LAP-001.
---       Three places generate codes today, in two different formats:
---         Asset::generateCode(), Asset::booted() creating hook,
---         and inline in AssetController@store.
---       Collapse to ONE method. It must load the type + sub type codes,
---       count existing assets for that pair (including soft-deleted ones,
---       via withTrashed(), or the counter will reuse a code), add one,
---       pad to 3 digits, and run inside a transaction.
---
---   C2. Hand-typed IDs removed (modification_id, sales_ID, disposal_id).
---       Drop them from $fillable on AssetModification / AssetSale /
---       AssetDisposal, drop the three `unique:` validation rules and the
---       form fields, and format the auto-increment id for display
---       (MOD-0001 / SAL-0001 / DIS-0001) in the index and print views.
---
---   C3. AssetModification::TYPES -> ['upgrade','downgrade'] and the form
---       becomes two radio buttons. Drop 'replacement'.
---
---   C4. residual_value and assets.useful_life_months are new inputs.
---       App\Support\Depreciation assumes zero residual and reads the life
---       from the sub type. Until it is updated, both columns are stored
---       but ignored. Asset::addInitialLayer() should prefer the asset's
---       own useful_life_months when set.
---
---   C5. Revaluations need a controller, route, form and model. On save:
---       record previous_value (the current netBookValue) and write a
---       depreciation layer starting at revaluation_date for the remaining
---       life, so the new value depreciates forward.
---
---   C6. AssetSale model: the setSaleIdAttribute / getSaleIdAttribute /
---       setAuthorizedByAttribute / getAuthorizedByAttribute mutators
---       existed only to paper over sales_ID / authorized_BY. Delete them
---       and use the real column names.
---
---   C7. Asset::brand() now works (brand_id exists). Add brand_id to
---       $fillable and a brand dropdown to the registry form.
---
---   C8. AssetTypeController / AssetSubTypeController / BrandController
---       query a `name` column on asset_types that does not exist (it is
---       type_name), have no routes and no views. They need all three
---       before the master-file screens work. asset_types.type_code and
---       asset_sub_types.sub_type_code are NOT NULL, so their forms must
---       collect them.
---
---   C9. Asset::$fillable lists 'name', which is not a column. Remove.
---
---  C10. The trigger is gone, so nothing updates assets.location from a
---       modification any more. AssetModificationController::modify()
---       should write new_location onto the asset itself, or rely on
---       asset_allocations (which it already carries over).
--- =====================================================================
+
