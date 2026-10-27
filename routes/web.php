@@ -68,10 +68,9 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::delete('/brands/{id}', [BrandController::class, 'destroy'])->name('brands.destroy');
 });
 
-//Depreciation report + useful-life settings (same permission as the registry)
+// Depreciation report (same permission as the registry)
 Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/depreciation', [DepreciationController::class, 'index'])->name('depreciation.index');
-    Route::post('/depreciation/settings', [DepreciationController::class, 'updateSettings'])->middleware('throttle:10,1')->name('depreciation.settings');
 });
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {

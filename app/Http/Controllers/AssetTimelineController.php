@@ -130,9 +130,8 @@ class AssetTimelineController extends Controller
                     'Recorded Cost' => 'LKR ' . number_format((float) $node->cost, 2),
                     'Purchase Date' => $node->purchase_date ? $node->purchase_date->format('Y-m-d') : null,
                     'Financial Year' => $node->financial_year,
-                    'Useful Life' => $node->useful_life_months
-                        ? $node->useful_life_months . ' months'
-                        : ($node->subType?->useful_life_years ? ($node->subType->useful_life_years * 12) . ' months (default)' : null),
+                    'Useful Life' => $node->useful_life_months ? $node->useful_life_months . ' months' : null,
+                    'Monthly Depreciation' => $node->monthly_depreciation !== null ? 'LKR ' . number_format((float) $node->monthly_depreciation, 2) : null,
                     'Residual Value' => ((float) $node->residual_value > 0) ? 'LKR ' . number_format((float) $node->residual_value, 2) : null,
                     'Supplier' => $node->supplier,
                     'PO / Invoice' => trim(($node->po_reference ?? '') . ($node->invoice_reference ? ' / ' . $node->invoice_reference : ''), ' /') ?: null,
@@ -316,6 +315,9 @@ class AssetTimelineController extends Controller
                     'Previous Carrying Value' => 'LKR ' . number_format((float) $reval->previous_value, 2),
                     'Revalued Amount' => 'LKR ' . number_format((float) $reval->revalued_amount, 2) . " ({$deltaFormatted})",
                     'New Useful Life' => $reval->new_useful_life_months ? $reval->new_useful_life_months . ' months' : null,
+                    'New Monthly Depreciation' => $reval->resultAsset?->monthly_depreciation !== null
+                        ? 'LKR ' . number_format((float) $reval->resultAsset->monthly_depreciation, 2)
+                        : null,
                     'Reason' => $reval->reason,
                     'Authorized By' => $reval->authorized_by,
                 ]),

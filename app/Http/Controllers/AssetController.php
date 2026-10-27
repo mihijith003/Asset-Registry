@@ -84,13 +84,29 @@ class AssetController extends Controller
             'supplier' => ['nullable', 'string', 'max:150'],
             'po_reference' => ['nullable', 'string', 'max:100'],
             'invoice_reference' => ['nullable', 'string', 'max:100'],
-            'residual_value' => ['nullable', 'numeric', 'min:0', 'lte:cost'],
-            'useful_life_months' => ['nullable', 'integer', 'min:1'],
+            'useful_life_months' => ['required', 'integer', 'min:1', 'max:600'],
+            'monthly_depreciation' => [
+                'required',
+                'numeric',
+                'min:0.01',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request) {
+                    $cost = (float) $request->input('cost', 0);
+                    $months = (int) $request->input('useful_life_months', 0);
+                    $monthly = (float) $value;
+
+                    if ($months > 0 && round($monthly * $months, 2) > round($cost, 2)) {
+                        $fail('Total depreciation (' . number_format($monthly * $months, 2) . ') cannot exceed the asset cost (' . number_format($cost, 2) . ') — the asset cannot depreciate below zero.');
+                    }
+                },
+            ],
             'comments' => ['nullable', 'string', 'max:1000'],
         ], [
             'asset_sub_type_id.exists' => 'The selected asset sub type does not belong to the selected asset type.',
-            'residual_value.lte' => 'The residual value must not exceed the asset cost.',
         ]);
+
+        $validated['useful_life_months'] = (int) $validated['useful_life_months'];
+        $validated['monthly_depreciation'] = round((float) $validated['monthly_depreciation'], 2);
+        $validated['residual_value'] = max(0.0, round((float) $validated['cost'] - ($validated['monthly_depreciation'] * $validated['useful_life_months']), 2));
 
         $asset = DB::transaction(function () use ($validated) {
             $validated['asset_code'] = Asset::generateCode(
@@ -116,4 +132,3 @@ class AssetController extends Controller
         return redirect()->route('assets.index')->with('success', 'Asset registered successfully.');
     }
 }
-

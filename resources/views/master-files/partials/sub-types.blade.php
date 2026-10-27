@@ -75,27 +75,6 @@
                         @enderror
                     @endif
                 </div>
-
-                <!-- Useful Life (Years) -->
-                <div class="form-group">
-                    <label for="useful_life_years" class="form-label">
-                        Default Useful Life (Years)
-                    </label>
-                    <input type="number"
-                           id="useful_life_years"
-                           name="useful_life_years"
-                           value="{{ old('_method') !== 'PATCH' ? old('useful_life_years') : '' }}"
-                           min="1"
-                           max="100"
-                           placeholder="e.g. 5 (leave blank if not depreciated)"
-                           class="form-control">
-                    <small class="form-hint">Default life for new assets. Changing this here applies only to assets registered from now on.</small>
-                    @if (old('_method') !== 'PATCH')
-                        @error('useful_life_years', 'assetSubType')
-                            <p style="color: var(--danger); font-size: 0.8rem; margin-top: 0.25rem;">{{ $message }}</p>
-                        @enderror
-                    @endif
-                </div>
             </div>
 
             <div class="form-actions">
@@ -144,12 +123,11 @@
         <table class="table" data-datatable data-empty="No asset sub types found.">
             <thead>
                 <tr>
-                    <th style="width: 22%;">Parent Asset Type</th>
-                    <th style="width: 15%;">Sub Type Code</th>
+                    <th style="width: 25%;">Parent Asset Type</th>
+                    <th style="width: 18%;">Sub Type Code</th>
                     <th>Sub Type Name</th>
-                    <th style="text-align: center; width: 18%;">Default Life</th>
-                    <th style="text-align: center; width: 12%;">Assets</th>
-                    <th class="no-sort" style="text-align: right; width: 16%;">Actions</th>
+                    <th style="text-align: center; width: 15%;">Assets</th>
+                    <th class="no-sort" style="text-align: right; width: 18%;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -170,13 +148,6 @@
                             {{ $subType->sub_type_name }}
                         </td>
                         <td style="text-align: center;">
-                            @if ($subType->useful_life_years)
-                                <span class="badge badge-secondary">{{ $subType->useful_life_years }} {{ $subType->useful_life_years == 1 ? 'year' : 'years' }}</span>
-                            @else
-                                <span style="color: var(--text-muted); font-size: 0.8125rem;">Not depreciated</span>
-                            @endif
-                        </td>
-                        <td style="text-align: center;">
                             <span class="badge badge-secondary">{{ $subType->assets_count }}</span>
                         </td>
                         <td style="text-align: right; white-space: nowrap;">
@@ -187,8 +158,7 @@
                                     data-action="{{ route('asset-subtypes.update', $subType->id) }}"
                                     data-type-id="{{ $subType->asset_type_id }}"
                                     data-name="{{ $subType->sub_type_name }}"
-                                    data-code="{{ $subType->sub_type_code }}"
-                                    data-years="{{ $subType->useful_life_years ?? '' }}">
+                                    data-code="{{ $subType->sub_type_code }}">
                                 Edit
                             </button>
 
@@ -211,16 +181,11 @@
 <div id="edit-subtype-modal" class="modal-overlay" {{ (old('_method') === 'PATCH' && isset($errors) && $errors->assetSubType->any()) ? '' : 'hidden' }}>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="edit-subtype-title">
         <h3 id="edit-subtype-title">Edit Asset Sub Type</h3>
-        <p class="modal-sub">Update this sub type's name, code, parent type or default useful life.</p>
+        <p class="modal-sub">Update this sub type's name, code or parent type.</p>
 
         {{-- Retroactive asset code warning --}}
-        <div style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; padding: 0.75rem 1rem; border-radius: var(--radius); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+        <div style="background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a; padding: 0.75rem 1rem; border-radius: var(--radius); font-size: 0.8125rem; margin-bottom: 1.25rem;">
             <strong>Warning:</strong> Changing a Sub Type Code does <em>not</em> retroactively change the asset codes of assets already registered under it.
-        </div>
-
-        {{-- Useful life notice --}}
-        <div style="background-color: #f8fafc; color: var(--text-muted); border: 1px solid var(--border-color); padding: 0.75rem 1rem; border-radius: var(--radius); font-size: 0.8125rem; margin-bottom: 1.25rem;">
-            <strong>Note:</strong> Changing the default useful life here affects only assets registered from now on. Existing assets and depreciation layers retain their current values.
         </div>
 
         <form id="edit-subtype-form" method="POST" action="{{ old('edit_action', '') }}">
@@ -285,24 +250,6 @@
                 @endif
             </div>
 
-            <!-- Useful Life (Years) -->
-            <div class="form-group" style="margin-bottom: 1rem;">
-                <label for="edit_useful_life_years" class="form-label">Default Useful Life (Years)</label>
-                <input type="number"
-                       id="edit_useful_life_years"
-                       name="useful_life_years"
-                       value="{{ old('_method') === 'PATCH' ? old('useful_life_years') : '' }}"
-                       min="1"
-                       max="100"
-                       placeholder="e.g. 5 (leave blank if not depreciated)"
-                       class="form-control">
-                @if (old('_method') === 'PATCH')
-                    @error('useful_life_years', 'assetSubType')
-                        <p style="color: var(--danger); font-size: 0.8rem; margin-top: 0.25rem;">{{ $message }}</p>
-                    @enderror
-                @endif
-            </div>
-
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" data-edit-subtype-cancel>Cancel</button>
                 <button type="submit" class="btn btn-primary">Save Changes</button>
@@ -321,7 +268,6 @@
         var typeSelect = document.getElementById('edit_sub_type_asset_type_id');
         var nameInput = document.getElementById('edit_sub_type_name');
         var codeInput = document.getElementById('edit_sub_type_code');
-        var yearsInput = document.getElementById('edit_useful_life_years');
         var cancelBtn = modal.querySelector('[data-edit-subtype-cancel]');
 
         function closeModal() {
@@ -340,7 +286,6 @@
             }
             nameInput.value = btn.dataset.name || '';
             codeInput.value = btn.dataset.code || '';
-            yearsInput.value = btn.dataset.years || '';
 
             modal.hidden = false;
             nameInput.focus();

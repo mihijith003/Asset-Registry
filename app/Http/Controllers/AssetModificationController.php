@@ -248,6 +248,7 @@ class AssetModificationController extends Controller
             'start_date' => $layer->start_date instanceof \DateTimeInterface ? $layer->start_date->format('Y-m-d') : (string) $layer->start_date,
             'end_date' => $layer->end_date ? ($layer->end_date instanceof \DateTimeInterface ? $layer->end_date->format('Y-m-d') : (string) $layer->end_date) : null,
             'useful_life_months' => $layer->useful_life_months,
+            'monthly_depreciation' => $layer->monthly_depreciation !== null ? (float) $layer->monthly_depreciation : null,
         ];
         $parentLayers = $parent->layers->map($toArray)->all();
         $componentLayers = $component->layers->map($toArray)->all();
@@ -266,6 +267,12 @@ class AssetModificationController extends Controller
             $typeId = $subType?->asset_type_id ?? $parent->asset_type_id;
             $subTypeId = $subType?->id ?? $parent->asset_sub_type_id;
 
+            // It was part of the asset (or of the part it came with), so its cost and monthly depreciation are sliced
+            // out of that part's layers and keep their start dates and useful life.
+            $prefer = $originId === $parent->id ? null : array_merge([$originId], Asset::find($originId)->descendantIds());
+            [$removedLayers, $parentLayers] = Depreciation::slice($parentLayers, $removedPrice, $prefer);
+            $removedSummary = $this->summarizeLayers($removedLayers, $removedPrice);
+
             $removed = Asset::create([
                 'asset_code' => Asset::generateCode((int) $typeId, (int) $subTypeId),
                 'asset_type_id' => $typeId,
@@ -275,21 +282,20 @@ class AssetModificationController extends Controller
                 'financial_year' => $parent->financial_year,
                 'location' => null,
                 'cost' => $removedPrice,
+                'useful_life_months' => $removedSummary['useful_life_months'],
+                'monthly_depreciation' => $removedSummary['monthly_depreciation'],
+                'residual_value' => $removedSummary['residual_value'],
                 'origin_asset_id' => $originId, // trace the component back to the asset it came with
             ]);
 
-            // It was part of the asset (or of the part it came with), so its cost is taken out of that part's layers
-            // and keeps their start dates. Its own sub type decides how long it lasts, when that is set.
-            $prefer = $originId === $parent->id ? null : array_merge([$originId], Asset::find($originId)->descendantIds());
-            [$removedLayers, $parentLayers] = Depreciation::slice($parentLayers, $removedPrice, $prefer);
-
-            $ownMonths = $subType?->useful_life_years ? $subType->useful_life_years * 12 : null;
             foreach ($removedLayers as $layer) {
                 $removed->layers()->create([
                     'source_asset_id' => $removed->id,
                     'cost' => $layer['cost'],
                     'start_date' => $layer['start_date'],
-                    'useful_life_months' => $ownMonths ?? $layer['useful_life_months'],
+                    'end_date' => $layer['end_date'] ?? null,
+                    'useful_life_months' => $layer['useful_life_months'],
+                    'monthly_depreciation' => $layer['monthly_depreciation'] ?? null,
                 ]);
             }
         } elseif ($removedPart !== null) {
@@ -300,17 +306,21 @@ class AssetModificationController extends Controller
                 return ['The selected component is not part of the selected asset.', null];
             }
 
-            $removed->merged_into_asset_id = null;
-            $removed->cost = $removedPrice;
-            $removed->save();
-
-            // Its cost is taken out of the parent's layers (its own first) and its layers are rebuilt from that,
-            // so it keeps its original start date(s) at the price entered.
+            // Its cost and monthly depreciation are taken out of the parent's layers (its own first) and its layers
+            // are rebuilt from that, so it keeps its original start date(s) at the price entered.
             [$removedLayers, $parentLayers] = Depreciation::slice(
                 $parentLayers,
                 $removedPrice,
                 array_merge([$removed->id], $removed->descendantIds())
             );
+            $removedSummary = $this->summarizeLayers($removedLayers, $removedPrice);
+
+            $removed->merged_into_asset_id = null;
+            $removed->cost = $removedPrice;
+            $removed->useful_life_months = $removedSummary['useful_life_months'];
+            $removed->monthly_depreciation = $removedSummary['monthly_depreciation'];
+            $removed->residual_value = $removedSummary['residual_value'];
+            $removed->save();
 
             $removed->layers()->delete();
             foreach ($removedLayers as $layer) {
@@ -328,6 +338,8 @@ class AssetModificationController extends Controller
 
         // 2. The new combined asset. Cost = asset - removed component + added component.
         $totalCost = round((float) $parent->cost - $removedPrice + (float) $component->cost, 2);
+        $combinedLayers = array_merge($parentLayers, $componentLayers);
+        $combinedSummary = $this->summarizeLayers($combinedLayers, $totalCost);
 
         // Brand / model describe the parts, e.g. "ASUS + Gigabyte" (the removed part's name is taken out).
         $brand = $this->joinNames($parent->brand_name, $component->brand_name, $removed?->brand_name ?? ($data['removed_brand'] ?? null));
@@ -355,6 +367,9 @@ class AssetModificationController extends Controller
             $combined = $original;
             $combined->merged_into_asset_id = null; // back in the registry under its original code
             $combined->cost = $totalCost;
+            $combined->useful_life_months = $combinedSummary['useful_life_months'];
+            $combined->monthly_depreciation = $combinedSummary['monthly_depreciation'];
+            $combined->residual_value = $combinedSummary['residual_value'];
             $combined->save();
             $combined->layers()->delete();
         } else {
@@ -367,11 +382,14 @@ class AssetModificationController extends Controller
                 'financial_year' => $parent->financial_year,
                 'location' => $parent->location,
                 'cost' => $totalCost,
+                'useful_life_months' => $combinedSummary['useful_life_months'],
+                'monthly_depreciation' => $combinedSummary['monthly_depreciation'],
+                'residual_value' => $combinedSummary['residual_value'],
             ]);
         }
 
         // The combined asset's layers: what is left of the asset plus the added component, each with its own start date.
-        foreach (array_merge($parentLayers, $componentLayers) as $layer) {
+        foreach ($combinedLayers as $layer) {
             $combined->layers()->create($layer);
         }
 
@@ -431,5 +449,42 @@ class AssetModificationController extends Controller
         }
 
         return Str::limit(implode(' + ', array_filter($parts)), 100, '');
+    }
+
+    /**
+     * Derive asset-level useful_life_months, monthly_depreciation, and residual_value from a set of layer arrays.
+     */
+    private function summarizeLayers(array $layers, float $totalCost): array
+    {
+        $active = array_filter($layers, fn ($l) => empty($l['end_date']));
+        $hasMonthly = false;
+        $monthlySum = 0.0;
+        $maxDepreciable = 0.0;
+        $distinctLives = [];
+
+        foreach ($active as $l) {
+            $cost = (float) ($l['cost'] ?? 0);
+            $life = isset($l['useful_life_months']) && $l['useful_life_months'] !== null ? (int) $l['useful_life_months'] : null;
+            $monthly = isset($l['monthly_depreciation']) && $l['monthly_depreciation'] !== null
+                ? (float) $l['monthly_depreciation']
+                : null;
+
+            if ($life && $life > 0) {
+                $distinctLives[$life] = true;
+            }
+            if ($monthly !== null && $monthly > 0) {
+                $hasMonthly = true;
+                $monthlySum += $monthly;
+            }
+            if ($life && $life > 0 && $monthly !== null && $monthly > 0) {
+                $maxDepreciable += min($cost, $monthly * $life);
+            }
+        }
+
+        return [
+            'useful_life_months' => ! empty($distinctLives) ? max(array_keys($distinctLives)) : null,
+            'monthly_depreciation' => $hasMonthly ? round($monthlySum, 2) : null,
+            'residual_value' => $hasMonthly ? max(0.0, round($totalCost - $maxDepreciable, 2)) : 0.0,
+        ];
     }
 }

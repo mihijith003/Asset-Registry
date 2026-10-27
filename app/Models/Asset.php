@@ -27,6 +27,7 @@ class Asset extends Model
         'cost',
         'residual_value',
         'useful_life_months',
+        'monthly_depreciation',
         'comments',
         'merged_into_asset_id', // NEW: set on the original assets once they are combined into a new asset
         'superseded_by_asset_id', // NEW: set on the old asset when superseded by a revalued successor asset
@@ -171,17 +172,16 @@ class Asset extends Model
     }
 
     /**
-     * NEW: one layer for a newly registered asset, starting today (or on purchase date), with the asset's custom useful life or its sub type's default.
+     * One layer for a newly registered asset, starting today (or on purchase date), with the asset's useful life and monthly depreciation.
      */
     public function addInitialLayer(): void
     {
-        $years = $this->subType?->useful_life_years;
-
         $this->layers()->create([
             'source_asset_id' => $this->id,
             'cost' => $this->cost,
             'start_date' => $this->purchase_date ? $this->purchase_date->toDateString() : now()->toDateString(),
-            'useful_life_months' => $this->useful_life_months ?? ($years ? $years * 12 : null),
+            'useful_life_months' => $this->useful_life_months,
+            'monthly_depreciation' => $this->monthly_depreciation,
         ]);
     }
 
