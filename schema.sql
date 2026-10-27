@@ -90,6 +90,7 @@ CREATE TABLE assets (
     location VARCHAR(150) NULL,
     cost DECIMAL(12,2) NOT NULL,
     useful_life_months SMALLINT UNSIGNED NULL,
+    monthly_depreciation DECIMAL(12,2) NULL,
     residual_value DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     comments TEXT NULL,
     merged_into_asset_id BIGINT UNSIGNED NULL,
@@ -153,7 +154,9 @@ CREATE TABLE asset_depreciation_layers (
     cost DECIMAL(12,2) NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NULL,
-    useful_life_months INT UNSIGNED NULL,        -- NULL = not depreciated
+    useful_life_months INT UNSIGNED NULL,    
+    monthly_depreciation DECIMAL(12,2) NULL,
+        -- NULL = not depreciated
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

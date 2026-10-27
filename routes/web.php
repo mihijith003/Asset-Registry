@@ -51,7 +51,7 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/assets/print', [AssetController::class, 'print'])->name('assets.print');
     Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
     Route::get('/assets/{asset}/timeline', [AssetTimelineController::class, 'show'])->withTrashed()->name('assets.timeline');
-    // NEW: allocate an asset to a branch or an employee (same permission as the registry)
+    //Allocate an asset to a branch or an employee (same permission as the registry)
     Route::post('/assets/{asset}/allocations', [AssetAllocationController::class, 'store'])->name('assets.allocate');
 
     // Master files (Asset Types, Sub Types, Brands)
