@@ -13,6 +13,7 @@
             ['name' => 'sections', 'label' => 'Include', 'type' => 'checkboxes', 'options' => ['a' => 'A'], 'checked' => ['a']],
         ],
         'keep'          => ['fy'],           // optional: other query keys to carry over as hidden fields
+        'clear'         => route('...'),     // optional: where "Clear" goes (default: the action)
     ])
 
     Current values come from the query string, so they are kept after Apply.
@@ -23,6 +24,7 @@
     $action = $action ?? url()->current();
     $fields = $fields ?? [];
     $keep = $keep ?? [];
+    $clear = $clear ?? $action;
 
     $selectedType = (string) request()->query('asset_type_id', '');
     $selectedSubType = (string) request()->query('asset_sub_type_id', '');
@@ -107,7 +109,7 @@
 
             <div class="filter-actions">
                 <button type="submit" class="btn btn-primary">Apply</button>
-                <a href="{{ $action }}" class="btn btn-secondary">Clear</a>
+                <a href="{{ $clear }}" class="btn btn-secondary">Clear</a>
             </div>
         </form>
     </div>

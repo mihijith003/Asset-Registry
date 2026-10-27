@@ -299,6 +299,7 @@ class PeriodMovement
             'valueAt' => [],   // "kind:ref" => ['nbv' => .., 'cost' => ..] at each in-period entry / exit (detail sections)
             'exit' => null,    // the last exit: ['date' => .., 'nbv' => .., 'cost' => ..]
             'intervals' => [], 'held' => false,
+            'heldAtOpening' => false,   // held at the end of openingDate (a fully written-down asset can be held at 0)
         ];
 
         $held = false;
@@ -311,6 +312,7 @@ class PeriodMovement
                 break;   // after the closing date (or today): has not happened for this report
             }
             if (! $openingDone && $date > $this->openingDate) {
+                $t->heldAtOpening = $held;
                 $t->opening = $held ? $this->value($asset, $this->openingDate, 'after') : 0.0;
                 $openingDone = true;
             }
@@ -386,7 +388,8 @@ class PeriodMovement
         }
 
         if (! $openingDone) {
-            $t->opening = $held && $holdStart <= $this->openingDate ? $this->value($asset, $this->openingDate, 'after') : 0.0;
+            $t->heldAtOpening = $held && $holdStart <= $this->openingDate;
+            $t->opening = $t->heldAtOpening ? $this->value($asset, $this->openingDate, 'after') : 0.0;
         }
         if ($held) {
             $intervals[] = [$holdStart, null];
@@ -488,6 +491,39 @@ class PeriodMovement
     public function bookValue(Asset $asset, string $date): array
     {
         return ['cost' => $this->cost($asset, $date, 'during'), 'nbv' => $this->value($asset, $date, 'during')];
+    }
+
+    /**
+     * Every asset HELD at the end of $date, decided by date from the event history exactly as the movement summary's
+     * opening balance is (withTrashed: sold / disposed / superseded / merged later still count): the "opening" of a
+     * one-day period starting the day after. Cost and NBV are from the layers in force at the end of that day.
+     * A layer is written down when it has charged its whole useful life (its NBV is then its residual value).
+     *
+     * @return Collection<object{asset: Asset, cost: float, nbv: float, writtenDown: bool}>
+     */
+    public static function heldAt(Carbon $date, array $filters = [], ?Carbon $today = null): Collection
+    {
+        $next = $date->copy()->startOfDay()->addDay();
+        $movement = new self($next, $next, $filters, $today);
+        $d = $date->toDateString();
+
+        return $movement->run()->traces
+            ->filter(fn ($t) => $t->heldAtOpening)
+            ->map(function ($t) use ($movement, $d) {
+                $layers = $movement->inForce($t->asset, $d, 'after');
+
+                return (object) [
+                    'asset' => $t->asset,
+                    'cost' => $movement->cost($t->asset, $d, 'after'),
+                    'nbv' => $t->opening,
+                    'writtenDown' => $layers->isNotEmpty() && $layers->every(function ($layer) use ($movement, $d) {
+                        $life = (int) $layer->useful_life_months;
+
+                        return $life > 0 && (float) $layer->monthly_depreciation > 0 && $movement->charged($layer, $d)[0] >= $life;
+                    }),
+                ];
+            })
+            ->values();
     }
 
     // ------------------------------------------------------------------ depreciation detail

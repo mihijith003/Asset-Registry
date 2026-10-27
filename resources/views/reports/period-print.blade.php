@@ -1,8 +1,8 @@
-{{-- Period Report print view (route: reports.period.print) - same query parameters as the screen --}}
+{{-- Period Report print view (route: reports.print, tab=period) - same query parameters as the screen --}}
 @extends('layouts.print')
 
 @section('title', 'Period Report')
-@section('back', route('reports.period', request()->query()))
+@section('back', route('reports.index', request()->query()))
 @section('orientation', 'landscape')
 @section('doc-title', 'Period Report')
 @section('doc-ref', $period)

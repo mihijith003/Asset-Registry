@@ -75,10 +75,10 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/depreciation', [DepreciationController::class, 'index'])->name('depreciation.index');
 });
 
-// Period Report (same permission as the depreciation page)
+// Reporting: Period Report and Ageing Report tabs (same permission as the depreciation page)
 Route::middleware(['auth', 'permission:register assets'])->group(function () {
-    Route::get('/reports/period', [ReportController::class, 'index'])->name('reports.period');
-    Route::get('/reports/period/print', [ReportController::class, 'print'])->name('reports.period.print');
+    Route::get('/reports/period', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/period/print', [ReportController::class, 'print'])->name('reports.print');
 });
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {
