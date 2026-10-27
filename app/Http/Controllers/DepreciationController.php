@@ -3,16 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asset;
-use App\Models\AssetSubType;
-use App\Support\AdminAuthorization;
 use App\Support\Depreciation;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
-// Straight-line monthly depreciation report (per financial year) and the useful-life settings.
+// Straight-line monthly depreciation report (per financial year).
 class DepreciationController extends Controller
 {
     public function index(Request $request): View
@@ -71,45 +67,6 @@ class DepreciationController extends Controller
             ];
         }
 
-        $subTypes = AssetSubType::with('assetType')->orderBy('asset_type_id')->orderBy('sub_type_name')->get();
-
-        return view('depreciation.index', compact('rows', 'financialYears', 'selected', 'closingDate', 'subTypes'));
-    }
-
-    /**
-     * Save the useful life (years) of each sub type. It also updates the assets that are already registered.
-     */
-    public function updateSettings(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'useful_life_years' => ['required', 'array'],
-            'useful_life_years.*' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'admin_password' => ['required', 'string'],
-        ]);
-
-        if (! AdminAuthorization::findAdminByPassword($validated['admin_password'])) {
-            return back()->withErrors(['admin_password' => 'Incorrect admin password. The settings were not saved.']);
-        }
-
-        DB::transaction(function () use ($validated) {
-            foreach (AssetSubType::all() as $subType) {
-                if (! array_key_exists($subType->id, $validated['useful_life_years'])) {
-                    continue;
-                }
-
-                $years = $validated['useful_life_years'][$subType->id];
-                $years = $years === null || $years === '' ? null : (int) $years;
-
-                $subType->update(['useful_life_years' => $years]);
-
-                // Layers hold their own copy of the life; update the ones whose cost came from this sub type
-                // (except assets that have their own custom useful_life_months explicitly set).
-                DB::table('asset_depreciation_layers')
-                    ->whereIn('source_asset_id', Asset::where('asset_sub_type_id', $subType->id)->whereNull('useful_life_months')->pluck('id'))
-                    ->update(['useful_life_months' => $years ? $years * 12 : null]);
-            }
-        });
-
-        return redirect()->route('depreciation.index')->with('success', 'Useful life settings saved.');
+        return view('depreciation.index', compact('rows', 'financialYears', 'selected', 'closingDate'));
     }
 }

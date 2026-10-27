@@ -12,12 +12,20 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AssetController extends Controller
 {
     use FiltersByAssetType;
+
+    /**
+     * Labels per sticker sheet: must equal --label-cols x --label-rows in assets/labels.blade.php (the sheet warns
+     * on screen if they differ). Used for the registry's "start at label position" limit.
+     */
+    public const LABELS_PER_PAGE = 24;
 
     /**
      * Display a listing of assets and registration form.
@@ -63,6 +71,41 @@ class AssetController extends Controller
     }
 
     /**
+     * Printable QR label sheet for the same current assets and filters as the registry list. ?start=N leaves the
+     * first N-1 label slots blank so a part-used sticker sheet can be reused; ?asset=<id> (a registry row's Label
+     * button) restricts the sheet to that one asset, still within active() and the filter.
+     */
+    public function labels(Request $request): View
+    {
+        $filters = $this->typeFilters($request);
+        $backUrl = route('assets.index', $request->except(['start', 'asset']));
+
+        $validator = Validator::make($request->only('asset'), ['asset' => 'nullable|exists:assets,id']);
+        if ($validator->fails()) {
+            throw (new ValidationException($validator))->redirectTo($backUrl);
+        }
+        $assetId = $validator->validated()['asset'] ?? null;
+
+        $assets = $this->applyTypeFilter(
+            Asset::with(['assetType', 'subType', 'brand'])->active(),
+            $filters
+        )
+            ->when($assetId, fn ($query, $id) => $query->whereKey($id))
+            ->orderBy('asset_code')
+            ->get();
+
+        $start = min(self::LABELS_PER_PAGE, max(1, (int) $request->query('start', 1)));
+
+        return view('assets.labels', [
+            'assets' => $assets,
+            'blanks' => $start - 1,
+            'perPage' => self::LABELS_PER_PAGE,
+            'backUrl' => $backUrl,
+            'single' => $assetId !== null,
+        ]);
+    }
+
+    /**
      * Store a newly created asset in storage.
      */
     public function store(Request $request): RedirectResponse
@@ -84,13 +127,29 @@ class AssetController extends Controller
             'supplier' => ['nullable', 'string', 'max:150'],
             'po_reference' => ['nullable', 'string', 'max:100'],
             'invoice_reference' => ['nullable', 'string', 'max:100'],
-            'residual_value' => ['nullable', 'numeric', 'min:0', 'lte:cost'],
-            'useful_life_months' => ['nullable', 'integer', 'min:1'],
+            'useful_life_months' => ['required', 'integer', 'min:1', 'max:600'],
+            'monthly_depreciation' => [
+                'required',
+                'numeric',
+                'min:0.01',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request) {
+                    $cost = (float) $request->input('cost', 0);
+                    $months = (int) $request->input('useful_life_months', 0);
+                    $monthly = (float) $value;
+
+                    if ($months > 0 && round($monthly * $months, 2) > round($cost, 2)) {
+                        $fail('Total depreciation (' . number_format($monthly * $months, 2) . ') cannot exceed the asset cost (' . number_format($cost, 2) . ') — the asset cannot depreciate below zero.');
+                    }
+                },
+            ],
             'comments' => ['nullable', 'string', 'max:1000'],
         ], [
             'asset_sub_type_id.exists' => 'The selected asset sub type does not belong to the selected asset type.',
-            'residual_value.lte' => 'The residual value must not exceed the asset cost.',
         ]);
+
+        $validated['useful_life_months'] = (int) $validated['useful_life_months'];
+        $validated['monthly_depreciation'] = round((float) $validated['monthly_depreciation'], 2);
+        $validated['residual_value'] = max(0.0, round((float) $validated['cost'] - ($validated['monthly_depreciation'] * $validated['useful_life_months']), 2));
 
         $asset = DB::transaction(function () use ($validated) {
             $validated['asset_code'] = Asset::generateCode(
@@ -116,4 +175,3 @@ class AssetController extends Controller
         return redirect()->route('assets.index')->with('success', 'Asset registered successfully.');
     }
 }
-

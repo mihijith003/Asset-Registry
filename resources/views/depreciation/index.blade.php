@@ -12,7 +12,7 @@
         <div class="card-header">
             <div>
                 <h3>Depreciation Report</h3>
-                <p>Straight-line, calculated monthly (complete months only), with no residual value.</p>
+                <p>Monthly depreciation (complete months only), using each asset's useful life and monthly depreciation.</p>
             </div>
             <form method="GET" action="{{ route('depreciation.index') }}" style="display: flex; align-items: center; gap: 0.5rem;">
                 <label for="fy" class="form-label" style="margin: 0;">Financial Year</label>
@@ -69,37 +69,6 @@
                     @endforeach
                 </tbody>
             </table>
-        </div>
-    </div>
-
-    <!-- Useful life settings -->
-    <div class="card">
-        <div class="card-header">
-            <div>
-                <h3>Useful Life Settings</h3>
-                <p>Years over which each kind of asset is written off. Leave blank to not depreciate that kind of asset. Saving also updates assets already registered.</p>
-            </div>
-        </div>
-        <div class="card-body">
-            <form id="depreciation-settings-form" method="POST" action="{{ route('depreciation.settings') }}">
-                @csrf
-                <div class="form-row">
-                    @foreach ($subTypes as $subType)
-                        <div class="form-group">
-                            <label class="form-label" for="life_{{ $subType->id }}">{{ $subType->assetType->type_name ?? '' }} - {{ trim($subType->sub_type_name) }}</label>
-                            <input type="number" id="life_{{ $subType->id }}" name="useful_life_years[{{ $subType->id }}]"
-                                   value="{{ old('useful_life_years.' . $subType->id, $subType->useful_life_years) }}"
-                                   class="form-control" min="1" max="100" step="1" placeholder="Years">
-                        </div>
-                    @endforeach
-                </div>
-
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Save Settings</button>
-                </div>
-            </form>
-
-            <x-admin-password-modal form="depreciation-settings-form" />
         </div>
     </div>
 </x-app-layout>

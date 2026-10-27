@@ -30,12 +30,10 @@ class AssetSubTypeController extends Controller
                 Rule::unique('asset_sub_types', 'sub_type_code')
                     ->where(fn ($q) => $q->where('asset_type_id', $request->asset_type_id)),
             ],
-            'useful_life_years' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $validated['sub_type_code'] = strtoupper(trim($validated['sub_type_code']));
         $validated['sub_type_name'] = trim($validated['sub_type_name']);
-        $validated['useful_life_years'] = ! empty($validated['useful_life_years']) ? (int) $validated['useful_life_years'] : null;
 
         AssetSubType::create($validated);
 
@@ -69,12 +67,10 @@ class AssetSubTypeController extends Controller
                     ->where(fn ($q) => $q->where('asset_type_id', $request->asset_type_id))
                     ->ignore($subType->id),
             ],
-            'useful_life_years' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $validated['sub_type_code'] = strtoupper(trim($validated['sub_type_code']));
         $validated['sub_type_name'] = trim($validated['sub_type_name']);
-        $validated['useful_life_years'] = ! empty($validated['useful_life_years']) ? (int) $validated['useful_life_years'] : null;
 
         $subType->update($validated);
 

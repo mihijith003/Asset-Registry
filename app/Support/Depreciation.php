@@ -36,11 +36,13 @@ class Depreciation
 
     /**
      * Accumulated depreciation of the given layers (models or arrays) as of a date.
-     * When residual_value is provided (or resolved from the asset), it is apportioned
-     * across the layers in proportion to each layer's cost, and depreciation stops
-     * once net book value reaches residual_value.
-     * A layer depreciates from start_date and stops at end_date (if set); after end_date
-     * it accrues no further depreciation.
+     *
+     * For each layer:
+     *   accumulated = complete months elapsed (bounded by useful_life_months and by end_date where set)
+     *                 * monthly_depreciation
+     *
+     * Layers with a null useful_life_months or null monthly_depreciation are treated as not depreciated.
+     * Accumulated depreciation for a layer never exceeds cost - residual_value for that layer.
      */
     public static function accumulated(iterable $layers, Carbon $asOf, ?float $residualValue = null): float
     {
@@ -69,36 +71,21 @@ class Depreciation
             return 0.0;
         }
 
-        if ($residualValue === null) {
-            $residualValue = self::resolveResidualValue($applicableLayers);
-        }
-
-        $totalCost = 0.0;
-        foreach ($applicableLayers as $layer) {
-            $cost = (float) self::value($layer, 'cost');
-            if ($cost > 0) {
-                $totalCost += $cost;
-            }
-        }
-
-        if ($totalCost <= 0.0) {
-            return 0.0;
-        }
-
-        $residualValue = max(0.0, min((float) $residualValue, $totalCost));
-        $depreciableRatio = ($totalCost > 0) ? ($totalCost - $residualValue) / $totalCost : 1.0;
-
         $totalAccumulated = 0.0;
 
         foreach ($applicableLayers as $layer) {
             $cost = (float) self::value($layer, 'cost');
-            $life = (int) self::value($layer, 'useful_life_months');
+            $life = self::value($layer, 'useful_life_months');
+            $monthly = self::value($layer, 'monthly_depreciation');
             $start = self::value($layer, 'start_date');
             $end = self::value($layer, 'end_date');
 
-            if ($life <= 0 || $cost <= 0 || ! $start) {
-                continue; // no useful life set = not depreciated
+            if ($life === null || (int) $life <= 0 || $monthly === null || (float) $monthly <= 0 || $cost <= 0 || ! $start) {
+                continue; // null useful_life_months or null monthly_depreciation = not depreciated
             }
+
+            $life = (int) $life;
+            $monthly = (float) $monthly;
 
             // A layer depreciates from start_date and stops at end_date (if set)
             $effectiveEnd = ($end && Carbon::parse($end)->startOfDay()->lt($asOfDate))
@@ -106,41 +93,20 @@ class Depreciation
                 : $asOfDate;
 
             $months = min($life, self::monthsBetween(Carbon::parse($start)->startOfDay(), $effectiveEnd));
-            $depreciableCost = $cost * $depreciableRatio;
-            $totalAccumulated += $depreciableCost * $months / $life;
+            $layerResidual = max(0.0, $cost - ($monthly * $life));
+            $maxLayerDepreciation = max(0.0, $cost - $layerResidual);
+
+            $totalAccumulated += min($months * $monthly, $maxLayerDepreciation);
         }
 
-        $maxDepreciation = max(0.0, $totalCost - $residualValue);
-
-        return round(min($totalAccumulated, $maxDepreciation), 2);
-    }
-
-    private static function resolveResidualValue(array $layerList): float
-    {
-        static $assetCache = [];
-
-        foreach ($layerList as $layer) {
-            if ($layer instanceof \App\Models\AssetDepreciationLayer) {
-                if ($layer->relationLoaded('asset') && $layer->asset) {
-                    return (float) ($layer->asset->residual_value ?? 0);
-                }
-                if (! empty($layer->asset_id)) {
-                    $asset = $assetCache[$layer->asset_id] ??= \App\Models\Asset::find($layer->asset_id);
-                    return (float) ($asset?->residual_value ?? 0);
-                }
-            } elseif (is_array($layer) && isset($layer['asset_id'])) {
-                $asset = $assetCache[$layer['asset_id']] ??= \App\Models\Asset::find($layer['asset_id']);
-                return (float) ($asset?->residual_value ?? 0);
-            }
-        }
-
-        return 0.0;
+        return round($totalAccumulated, 2);
     }
 
     /**
      * Split $amount of cost out of $layers, taking from the layers whose source asset is in $preferSourceIds
      * first (null = no preference) and any overflow from the other layers, each in proportion to its cost.
-     * Every slice keeps its layer's start date and life.
+     * Every slice keeps its layer's start date and life, and slices monthly_depreciation in the same proportion
+     * so that the slices sum back to the original monthly_depreciation.
      *
      * @return array{0: array, 1: array}  [removed layers, remaining layers]
      */
@@ -183,14 +149,42 @@ class Depreciation
         $removed = [];
         $remaining = [];
         foreach ($layers as $i => $l) {
+            $layerCost = (float) $l['cost'];
             $share = $shares[$i];
-            $left = round((float) $l['cost'] - $share, 2);
+            $left = round($layerCost - $share, 2);
+
+            $hasMonthly = array_key_exists('monthly_depreciation', $l) && $l['monthly_depreciation'] !== null;
+            $monthly = $hasMonthly ? (float) $l['monthly_depreciation'] : null;
+
+            if ($monthly !== null) {
+                if ($share <= 0) {
+                    $monthlyShare = 0.0;
+                    $monthlyLeft = round($monthly, 2);
+                } elseif ($left <= 0) {
+                    $monthlyShare = round($monthly, 2);
+                    $monthlyLeft = 0.0;
+                } else {
+                    $monthlyShare = $layerCost > 0 ? round($monthly * $share / $layerCost, 2) : 0.0;
+                    $monthlyLeft = round($monthly - $monthlyShare, 2);
+                }
+            } else {
+                $monthlyShare = null;
+                $monthlyLeft = null;
+            }
 
             if ($share > 0) {
-                $removed[] = ['cost' => $share] + $l;
+                $sliceRemoved = ['cost' => $share] + $l;
+                if ($hasMonthly) {
+                    $sliceRemoved['monthly_depreciation'] = $monthlyShare;
+                }
+                $removed[] = $sliceRemoved;
             }
             if ($left > 0) {
-                $remaining[] = ['cost' => $left] + $l;
+                $sliceRemaining = ['cost' => $left] + $l;
+                if ($hasMonthly) {
+                    $sliceRemaining['monthly_depreciation'] = $monthlyLeft;
+                }
+                $remaining[] = $sliceRemaining;
             }
         }
 

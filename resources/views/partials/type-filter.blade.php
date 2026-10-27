@@ -10,6 +10,7 @@
             ['name' => 'date_from', 'label' => 'From', 'type' => 'date'],
             ['name' => 'date_to',   'label' => 'To',   'type' => 'date'],
             ['name' => 'method', 'label' => 'Method', 'type' => 'select', 'options' => ['' => 'All', 'Lost' => 'Lost']],
+            ['name' => 'sections', 'label' => 'Include', 'type' => 'checkboxes', 'options' => ['a' => 'A'], 'checked' => ['a']],
         ],
         'keep'          => ['fy'],           // optional: other query keys to carry over as hidden fields
     ])
@@ -69,9 +70,27 @@
             @foreach ($fields as $field)
                 @php
                     $name = $field['name'];
-                    $value = (string) request()->query($name, $field['default'] ?? '');
+                    $value = ($field['type'] ?? 'text') === 'checkboxes' ? '' : (string) request()->query($name, $field['default'] ?? '');
                     $id = 'filter_' . $name;
                 @endphp
+                @if (($field['type'] ?? 'text') === 'checkboxes')
+                    {{-- A group of ticks sent as name[]; the "none" marker makes "nothing ticked" distinguishable
+                         from "not submitted". 'checked' = the ticked option keys. --}}
+                    <fieldset class="form-group" style="flex-basis: 100%; border: 0; padding: 0; margin: 0;">
+                        <legend class="form-label">{{ $field['label'] ?? ucfirst($name) }}</legend>
+                        <input type="hidden" name="{{ $name }}[]" value="none">
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem;">
+                            @foreach ($field['options'] ?? [] as $optionValue => $optionLabel)
+                                <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.875rem;">
+                                    <input type="checkbox" name="{{ $name }}[]" value="{{ $optionValue }}"
+                                           {{ in_array($optionValue, $field['checked'] ?? [], true) ? 'checked' : '' }}>
+                                    {{ $optionLabel }}
+                                </label>
+                            @endforeach
+                        </div>
+                    </fieldset>
+                    @continue
+                @endif
                 <div class="form-group">
                     <label class="form-label" for="{{ $id }}">{{ $field['label'] ?? ucfirst(str_replace('_', ' ', $name)) }}</label>
                     @if (($field['type'] ?? 'text') === 'select')

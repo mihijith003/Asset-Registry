@@ -19,14 +19,13 @@
             <tr>
                 <th>Sub Type Name</th>
                 <th>Code</th>
-                <th class="num">Useful Life (years)</th>
                 <th class="num">Assets</th>
             </tr>
         </thead>
         <tbody>
             @forelse ($groups as $type)
                 <tr>
-                    <th colspan="4" style="background: var(--soft); text-align: left;">
+                    <th colspan="3" style="background: var(--soft); text-align: left;">
                         {{ $type->type_name }} <span class="mono">({{ $type->type_code }})</span>
                     </th>
                 </tr>
@@ -34,23 +33,22 @@
                     <tr>
                         <td style="padding-left: 1.25rem;">{{ trim($subType->sub_type_name) }}</td>
                         <td class="mono">{{ $subType->sub_type_code }}</td>
-                        <td class="num">{{ $subType->useful_life_years ?? 'Not depreciated' }}</td>
                         <td class="num">{{ $subType->assets_count }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" style="padding-left: 1.25rem; color: var(--muted);">No sub types.</td></tr>
+                    <tr><td colspan="3" style="padding-left: 1.25rem; color: var(--muted);">No sub types.</td></tr>
                 @endforelse
                 <tr>
-                    <td colspan="3" style="font-weight: 600;">Subtotal: {{ $type->type_name }}</td>
+                    <td colspan="2" style="font-weight: 600;">Subtotal: {{ $type->type_name }}</td>
                     <td class="num" style="font-weight: 600;">{{ $type->subTypes->sum('assets_count') }}</td>
                 </tr>
             @empty
-                <tr><td colspan="4">No asset sub types found.</td></tr>
+                <tr><td colspan="3">No asset sub types found.</td></tr>
             @endforelse
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="3">Grand total ({{ $subTypeCount }} {{ \Illuminate\Support\Str::plural('sub type', $subTypeCount) }})</td>
+                <td colspan="2">Grand total ({{ $subTypeCount }} {{ \Illuminate\Support\Str::plural('sub type', $subTypeCount) }})</td>
                 <td class="num">{{ $assetCount }}</td>
             </tr>
         </tfoot>

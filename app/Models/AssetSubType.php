@@ -15,7 +15,6 @@ class AssetSubType extends Model
         'asset_type_id',
         'sub_type_name',
         'sub_type_code',
-        'useful_life_years', 
     ];
 
     public function assetType()

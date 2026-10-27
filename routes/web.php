@@ -9,6 +9,7 @@ use App\Http\Controllers\AssetSaleController;
 use App\Http\Controllers\AssetTimelineController;
 use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\AssetTypeController;
@@ -49,9 +50,10 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
     Route::get('/assets/print', [AssetController::class, 'print'])->name('assets.print');
+    Route::get('/assets/labels', [AssetController::class, 'labels'])->name('assets.labels');
     Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
     Route::get('/assets/{asset}/timeline', [AssetTimelineController::class, 'show'])->withTrashed()->name('assets.timeline');
-    // NEW: allocate an asset to a branch or an employee (same permission as the registry)
+    //Allocate an asset to a branch or an employee (same permission as the registry)
     Route::post('/assets/{asset}/allocations', [AssetAllocationController::class, 'store'])->name('assets.allocate');
 
     // Master files (Asset Types, Sub Types, Brands)
@@ -68,10 +70,15 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::delete('/brands/{id}', [BrandController::class, 'destroy'])->name('brands.destroy');
 });
 
-//Depreciation report + useful-life settings (same permission as the registry)
+// Depreciation report (same permission as the registry)
 Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/depreciation', [DepreciationController::class, 'index'])->name('depreciation.index');
-    Route::post('/depreciation/settings', [DepreciationController::class, 'updateSettings'])->middleware('throttle:10,1')->name('depreciation.settings');
+});
+
+// Period Report (same permission as the depreciation page)
+Route::middleware(['auth', 'permission:register assets'])->group(function () {
+    Route::get('/reports/period', [ReportController::class, 'index'])->name('reports.period');
+    Route::get('/reports/period/print', [ReportController::class, 'print'])->name('reports.period.print');
 });
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {

@@ -56,9 +56,6 @@
 
                     <div class="form-group">
                         <label class="form-label">Financial Year</label>
-                        {{-- CHANGED: dropdown instead of free text
-                        <input type="text" name="financial_year" value="{{ old('financial_year') }}" class="form-control" placeholder="e.g. 2024/2025" maxlength="9">
-                        --}}
                         <select name="financial_year" class="form-select">
                             <option value="">-- Select Financial Year --</option>
                             @foreach ($financialYears as $year)
@@ -68,19 +65,24 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Cost (LKR) <span class="required">*</span></label>
-                        <input type="number" name="cost" value="{{ old('cost') }}" class="form-control" step="0.01" min="0" required placeholder="0.00">
+                        <label class="form-label" for="cost">Cost (LKR) <span class="required">*</span></label>
+                        <input type="number" id="cost" name="cost" value="{{ old('cost') }}" class="form-control" step="0.01" min="0" required placeholder="0.00">
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Residual Value (LKR)</label>
-                        <input type="number" name="residual_value" value="{{ old('residual_value', 0) }}" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        <label class="form-label" for="useful_life_months">Useful Life (months) <span class="required">*</span></label>
+                        <input type="number" id="useful_life_months" name="useful_life_months" value="{{ old('useful_life_months') }}" class="form-control" min="1" max="600" step="1" required placeholder="e.g. 48">
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Useful Life (months)</label>
-                        <input type="number" name="useful_life_months" value="{{ old('useful_life_months') }}" class="form-control" min="1" placeholder="e.g. 36">
-                        <small class="form-hint">Leave blank to use the sub type's default life</small>
+                        <label class="form-label" for="monthly_depreciation">Monthly Depreciation (LKR) <span class="required">*</span></label>
+                        <input type="number" id="monthly_depreciation" name="monthly_depreciation" value="{{ old('monthly_depreciation') }}" class="form-control" step="0.01" min="0.01" required placeholder="e.g. 6000.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="derived_residual_value">Residual Value (LKR)</label>
+                        <input type="text" id="derived_residual_value" class="form-control" readonly tabindex="-1" value="—" style="background-color: var(--bg-main); font-weight: 500;">
+                        <small id="derived_residual_hint" class="form-hint">Calculated: Cost &minus; (Monthly Depreciation &times; Useful Life)</small>
                     </div>
                 </div>
 
@@ -134,6 +136,25 @@
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $assets->count() }}</span>
                 @include('partials.print-summary-button', ['route' => 'assets.print'])
+                {{-- QR label sheet for the same filter (raw query string, as the print button does); "Start at" skips
+                     the slots already used on a part-used sticker sheet. --}}
+                @php
+                    parse_str(request()->getQueryString() ?? '', $labelQuery);
+                @endphp
+                @php
+                    $labelQuery = array_filter(\Illuminate\Support\Arr::except($labelQuery, ['start', 'asset']), 'is_scalar');
+                @endphp
+                <form method="GET" action="{{ route('assets.labels') }}" target="_blank" data-label-form style="display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                    @foreach ($labelQuery as $key => $value)
+                        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                    @endforeach
+                    {{-- Set and enabled only by a row's Label button (script at the bottom of this page). --}}
+                    <input type="hidden" name="asset" value="" disabled data-label-asset-input>
+                    <label for="label_start" style="font-size: 0.875rem; color: var(--text-muted); white-space: nowrap;">Start at label</label>
+                    <input type="number" id="label_start" name="start" value="1" min="1" max="{{ \App\Http\Controllers\AssetController::LABELS_PER_PAGE }}"
+                           class="form-control" style="width: 4.5rem;">
+                    <button type="submit" class="btn btn-secondary">Print Labels</button>
+                </form>
             </div>
         </div>
 
@@ -246,6 +267,9 @@
                                             'by' => $a->allocated_by,
                                             'at' => $a->created_at?->format('Y-m-d H:i'),
                                         ])->values()->toJson() }}">Allocate</button>
+                                {{-- One label for this asset; the script adds the toolbar's "Start at label" value. --}}
+                                <a href="{{ route('assets.labels', $labelQuery + ['asset' => $asset->id]) }}" target="_blank" rel="noopener"
+                                   class="btn btn-secondary" data-label-asset="{{ $asset->id }}" title="Print a label for {{ $asset->asset_code }}">Label</a>
                             </td>
                         </tr>
                     @endforeach
@@ -290,6 +314,62 @@
     </div>
 
     <script>
+        (function () {
+            var costInput = document.getElementById('cost');
+            var lifeInput = document.getElementById('useful_life_months');
+            var monthlyInput = document.getElementById('monthly_depreciation');
+            var residualOutput = document.getElementById('derived_residual_value');
+            var residualHint = document.getElementById('derived_residual_hint');
+
+            if (costInput && lifeInput && monthlyInput && residualOutput) {
+                function updateResidualPreview() {
+                    var cost = parseFloat(costInput.value);
+                    var months = parseInt(lifeInput.value, 10);
+                    var monthly = parseFloat(monthlyInput.value);
+
+                    if (isNaN(cost) || isNaN(months) || isNaN(monthly) || months <= 0) {
+                        residualOutput.value = '—';
+                        residualOutput.style.color = '';
+                        if (residualHint) {
+                            residualHint.textContent = 'Calculated: Cost − (Monthly Depreciation × Useful Life)';
+                            residualHint.style.color = '';
+                        }
+                        return;
+                    }
+
+                    var residual = Math.round((cost - (monthly * months)) * 100) / 100;
+                    residualOutput.value = residual.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                    if (residual < 0) {
+                        residualOutput.style.color = 'var(--danger)';
+                        if (residualHint) {
+                            residualHint.textContent = 'Invalid: total depreciation exceeds cost (cannot depreciate below zero).';
+                            residualHint.style.color = 'var(--danger)';
+                        }
+                    } else {
+                        residualOutput.style.color = '';
+                        if (residualHint) {
+                            residualHint.textContent = 'Calculated: Cost − (Monthly Depreciation × Useful Life)';
+                            residualHint.style.color = '';
+                        }
+                    }
+                }
+
+                costInput.addEventListener('input', updateResidualPreview);
+                lifeInput.addEventListener('input', updateResidualPreview);
+                monthlyInput.addEventListener('input', updateResidualPreview);
+
+                var regForm = costInput.closest('form');
+                if (regForm) {
+                    regForm.addEventListener('reset', function () {
+                        setTimeout(updateResidualPreview, 0);
+                    });
+                }
+
+                updateResidualPreview();
+            }
+        })();
+
         (function () {
             var typeSelect = document.getElementById('asset_type_id');
             var subTypeSelect = document.getElementById('asset_sub_type_id');
@@ -389,6 +469,25 @@
             modal.querySelector('[data-allocate-cancel]').addEventListener('click', closeModal);
             modal.addEventListener('click', function (e) { if (e.target === modal) { closeModal(); } });
             document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) { closeModal(); } });
+        })();
+
+        // A row's "Label" button prints that one asset through the toolbar's Print Labels form, so it carries the
+        // same filter and whatever "Start at label" value is in the box. (Without JS the link still works, from slot 1.)
+        (function () {
+            var form = document.querySelector('[data-label-form]');
+            if (!form) { return; }
+            var assetInput = form.querySelector('[data-label-asset-input]');
+
+            document.addEventListener('click', function (e) {
+                var link = e.target.closest('[data-label-asset]');
+                if (!link) { return; }
+                e.preventDefault();
+
+                assetInput.value = link.dataset.labelAsset;
+                assetInput.disabled = false;
+                form.requestSubmit();   // runs the start box's min / max check like the bulk button
+                setTimeout(function () { assetInput.disabled = true; assetInput.value = ''; }, 0);
+            });
         })();
     </script>
 </x-app-layout>

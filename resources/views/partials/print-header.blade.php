@@ -6,6 +6,7 @@
         'title'   => 'Asset Sales',
         'filters' => ['Period' => '2026-04-01 to 2027-03-31'],   // optional extra filters; null/'' shows "All"
         'typeFilters' => ['Type', 'Sub Type'],                    // optional: which of these to show (default both, [] = none)
+        'note'    => 'Closing values as at ...',                  // optional extra line (e.g. a capped closing date)
     ])
 
     Type and Sub Type are read from the query string (asset_type_id / asset_sub_type_id). With no filters at all the
@@ -38,5 +39,8 @@
 <div class="print-header">
     <h2 class="print-title">{{ $title }}</h2>
     <div class="print-filters">{{ $summary }}</div>
+    @if (! empty($note))
+        <div class="print-filters" style="color: #b45309;">{{ $note }}</div>
+    @endif
     <div class="print-generated">Generated on {{ now()->format('Y-m-d H:i T') }} by {{ auth()->user()->name ?? 'Unknown user' }}</div>
 </div>

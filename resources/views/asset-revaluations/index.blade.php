@@ -95,6 +95,40 @@
                         @enderror
                     </div>
 
+                    <!-- New Monthly Depreciation (LKR) -->
+                    <div class="form-group">
+                        <label for="monthly_depreciation" class="form-label">
+                            New Monthly Depreciation (LKR) <span class="required">*</span>
+                        </label>
+                        <input type="number"
+                               id="monthly_depreciation"
+                               name="monthly_depreciation"
+                               value="{{ old('monthly_depreciation') }}"
+                               step="0.01"
+                               min="0.01"
+                               required
+                               placeholder="e.g. 6000.00"
+                               class="form-control">
+                        @error('monthly_depreciation')
+                            <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Derived Residual Value (LKR) -->
+                    <div class="form-group">
+                        <label for="reval_derived_residual" class="form-label">
+                            Residual Value (LKR)
+                        </label>
+                        <input type="text"
+                               id="reval_derived_residual"
+                               class="form-control"
+                               readonly
+                               tabindex="-1"
+                               value="—"
+                               style="background-color: var(--bg-main); font-weight: 500;">
+                        <small id="reval_derived_residual_hint" class="form-hint">Calculated: Revalued Amount &minus; (New Monthly Depreciation &times; New Useful Life)</small>
+                    </div>
+
                     <!-- Reason -->
                     <div class="form-group">
                         <label for="reason" class="form-label">
@@ -178,14 +212,64 @@
                         }
                     }
 
-                    assetSelect.addEventListener('change', updateRemainingLife);
+                    assetSelect.addEventListener('change', function () {
+                        updateRemainingLife();
+                        updateRevalResidualPreview();
+                    });
                     if (dateInput) {
                         dateInput.addEventListener('change', function () {
                             if (assetSelect.value) {
                                 updateRemainingLife();
+                                updateRevalResidualPreview();
                             }
                         });
                     }
+
+                    var amountInput = document.getElementById('revalued_amount');
+                    var monthlyInput = document.getElementById('monthly_depreciation');
+                    var residualOutput = document.getElementById('reval_derived_residual');
+                    var residualHint = document.getElementById('reval_derived_residual_hint');
+
+                    function updateRevalResidualPreview() {
+                        if (!amountInput || !monthlyInput || !residualOutput) {
+                            return;
+                        }
+                        var amount = parseFloat(amountInput.value);
+                        var months = parseInt(lifeInput.value, 10);
+                        var monthly = parseFloat(monthlyInput.value);
+
+                        if (isNaN(amount) || isNaN(months) || isNaN(monthly) || months <= 0) {
+                            residualOutput.value = '—';
+                            residualOutput.style.color = '';
+                            if (residualHint) {
+                                residualHint.textContent = 'Calculated: Revalued Amount − (New Monthly Depreciation × New Useful Life)';
+                                residualHint.style.color = '';
+                            }
+                            return;
+                        }
+
+                        var residual = Math.round((amount - (monthly * months)) * 100) / 100;
+                        residualOutput.value = residual.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                        if (residual < 0) {
+                            residualOutput.style.color = 'var(--danger)';
+                            if (residualHint) {
+                                residualHint.textContent = 'Invalid: total depreciation exceeds revalued amount (cannot depreciate below zero).';
+                                residualHint.style.color = 'var(--danger)';
+                            }
+                        } else {
+                            residualOutput.style.color = '';
+                            if (residualHint) {
+                                residualHint.textContent = 'Calculated: Revalued Amount − (New Monthly Depreciation × New Useful Life)';
+                                residualHint.style.color = '';
+                            }
+                        }
+                    }
+
+                    if (amountInput) { amountInput.addEventListener('input', updateRevalResidualPreview); }
+                    if (lifeInput) { lifeInput.addEventListener('input', updateRevalResidualPreview); }
+                    if (monthlyInput) { monthlyInput.addEventListener('input', updateRevalResidualPreview); }
+                    updateRevalResidualPreview();
                 })();
             </script>
         </div>

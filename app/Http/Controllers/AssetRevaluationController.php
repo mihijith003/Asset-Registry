@@ -45,7 +45,7 @@ class AssetRevaluationController extends Controller
                 : ($asset->purchase_date ? $asset->purchase_date->toDateString() : $asset->created_at?->toDateString());
 
             $lifeMonths = $activeLayers->whereNotNull('useful_life_months')->max('useful_life_months')
-                ?: ($asset->useful_life_months ?: ($asset->subType?->useful_life_years ? $asset->subType->useful_life_years * 12 : null));
+                ?: $asset->useful_life_months;
 
             $remainingLife = null;
             if ($lifeMonths && $initialStart) {
@@ -101,11 +101,29 @@ class AssetRevaluationController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        if (! $request->has('monthly_depreciation') && $request->has('new_monthly_depreciation')) {
+            $request->merge(['monthly_depreciation' => $request->input('new_monthly_depreciation')]);
+        }
+
         $validated = $request->validate([
             'asset_id' => ['required', 'exists:assets,id'], // availability is checked under a lock below
             'revaluation_date' => ['required', 'date'],
             'revalued_amount' => ['required', 'numeric', 'min:0'],
             'new_useful_life_months' => ['required', 'integer', 'min:1', 'max:600'],
+            'monthly_depreciation' => [
+                'required',
+                'numeric',
+                'min:0.01',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request) {
+                    $revaluedAmount = (float) $request->input('revalued_amount', 0);
+                    $months = (int) $request->input('new_useful_life_months', 0);
+                    $monthly = (float) $value;
+
+                    if ($months > 0 && round($monthly * $months, 2) > round($revaluedAmount, 2)) {
+                        $fail('Total depreciation (' . number_format($monthly * $months, 2) . ') cannot exceed the revalued amount (' . number_format($revaluedAmount, 2) . ') — the asset cannot depreciate below zero.');
+                    }
+                },
+            ],
             'reason' => ['nullable', 'string', 'max:255'],
             'comments' => ['nullable', 'string', 'max:1000'],
             'admin_password' => ['required', 'string'],
@@ -176,6 +194,10 @@ class AssetRevaluationController extends Controller
     private function applyRevaluation(Asset $asset, array $validated, string $authorizedBy): ?Asset
     {
         $allocation = $asset->currentAllocation;
+        $newLifeMonths = (int) $validated['new_useful_life_months'];
+        $monthlyDepreciation = round((float) $validated['monthly_depreciation'], 2);
+        $revaluedAmount = round((float) $validated['revalued_amount'], 2);
+        $derivedResidual = max(0.0, round($revaluedAmount - ($monthlyDepreciation * $newLifeMonths), 2));
 
         // Create a SUCCESSOR asset copying metadata from the old one
         $successor = Asset::create([
@@ -191,19 +213,21 @@ class AssetRevaluationController extends Controller
             'invoice_reference' => $asset->invoice_reference,
             'financial_year' => $asset->financial_year,
             'location' => $asset->location,
-            'residual_value' => $asset->residual_value ?? 0,
+            'residual_value' => $derivedResidual,
             'comments' => $asset->comments,
-            'cost' => $validated['revalued_amount'],
-            'useful_life_months' => (int) $validated['new_useful_life_months'],
+            'cost' => $revaluedAmount,
+            'useful_life_months' => $newLifeMonths,
+            'monthly_depreciation' => $monthlyDepreciation,
         ]);
 
         // d. Give the successor one depreciation layer
         $successor->layers()->create([
             'source_asset_id' => $successor->id,
-            'cost' => $validated['revalued_amount'],
+            'cost' => $revaluedAmount,
             'start_date' => $validated['revaluation_date'],
             'end_date' => null,
-            'useful_life_months' => (int) $validated['new_useful_life_months'],
+            'useful_life_months' => $newLifeMonths,
+            'monthly_depreciation' => $monthlyDepreciation,
         ]);
 
         // e. Close the OLD asset: set end_date on all open layers and set superseded_by_asset_id
