@@ -7,6 +7,7 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
+                'resources/js/labels.js', // QR label sheet only (assets/labels.blade.php)
             ],
             refresh: true,
         }),

@@ -12,12 +12,20 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AssetController extends Controller
 {
     use FiltersByAssetType;
+
+    /**
+     * Labels per sticker sheet: must equal --label-cols x --label-rows in assets/labels.blade.php (the sheet warns
+     * on screen if they differ). Used for the registry's "start at label position" limit.
+     */
+    public const LABELS_PER_PAGE = 24;
 
     /**
      * Display a listing of assets and registration form.
@@ -60,6 +68,41 @@ class AssetController extends Controller
             ->get();
 
         return view('assets.print', compact('assets'));
+    }
+
+    /**
+     * Printable QR label sheet for the same current assets and filters as the registry list. ?start=N leaves the
+     * first N-1 label slots blank so a part-used sticker sheet can be reused; ?asset=<id> (a registry row's Label
+     * button) restricts the sheet to that one asset, still within active() and the filter.
+     */
+    public function labels(Request $request): View
+    {
+        $filters = $this->typeFilters($request);
+        $backUrl = route('assets.index', $request->except(['start', 'asset']));
+
+        $validator = Validator::make($request->only('asset'), ['asset' => 'nullable|exists:assets,id']);
+        if ($validator->fails()) {
+            throw (new ValidationException($validator))->redirectTo($backUrl);
+        }
+        $assetId = $validator->validated()['asset'] ?? null;
+
+        $assets = $this->applyTypeFilter(
+            Asset::with(['assetType', 'subType', 'brand'])->active(),
+            $filters
+        )
+            ->when($assetId, fn ($query, $id) => $query->whereKey($id))
+            ->orderBy('asset_code')
+            ->get();
+
+        $start = min(self::LABELS_PER_PAGE, max(1, (int) $request->query('start', 1)));
+
+        return view('assets.labels', [
+            'assets' => $assets,
+            'blanks' => $start - 1,
+            'perPage' => self::LABELS_PER_PAGE,
+            'backUrl' => $backUrl,
+            'single' => $assetId !== null,
+        ]);
     }
 
     /**

@@ -136,6 +136,25 @@
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <span style="font-size: 0.875rem; color: var(--text-muted);">Total: {{ $assets->count() }}</span>
                 @include('partials.print-summary-button', ['route' => 'assets.print'])
+                {{-- QR label sheet for the same filter (raw query string, as the print button does); "Start at" skips
+                     the slots already used on a part-used sticker sheet. --}}
+                @php
+                    parse_str(request()->getQueryString() ?? '', $labelQuery);
+                @endphp
+                @php
+                    $labelQuery = array_filter(\Illuminate\Support\Arr::except($labelQuery, ['start', 'asset']), 'is_scalar');
+                @endphp
+                <form method="GET" action="{{ route('assets.labels') }}" target="_blank" data-label-form style="display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                    @foreach ($labelQuery as $key => $value)
+                        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                    @endforeach
+                    {{-- Set and enabled only by a row's Label button (script at the bottom of this page). --}}
+                    <input type="hidden" name="asset" value="" disabled data-label-asset-input>
+                    <label for="label_start" style="font-size: 0.875rem; color: var(--text-muted); white-space: nowrap;">Start at label</label>
+                    <input type="number" id="label_start" name="start" value="1" min="1" max="{{ \App\Http\Controllers\AssetController::LABELS_PER_PAGE }}"
+                           class="form-control" style="width: 4.5rem;">
+                    <button type="submit" class="btn btn-secondary">Print Labels</button>
+                </form>
             </div>
         </div>
 
@@ -248,6 +267,9 @@
                                             'by' => $a->allocated_by,
                                             'at' => $a->created_at?->format('Y-m-d H:i'),
                                         ])->values()->toJson() }}">Allocate</button>
+                                {{-- One label for this asset; the script adds the toolbar's "Start at label" value. --}}
+                                <a href="{{ route('assets.labels', $labelQuery + ['asset' => $asset->id]) }}" target="_blank" rel="noopener"
+                                   class="btn btn-secondary" data-label-asset="{{ $asset->id }}" title="Print a label for {{ $asset->asset_code }}">Label</a>
                             </td>
                         </tr>
                     @endforeach
@@ -447,6 +469,25 @@
             modal.querySelector('[data-allocate-cancel]').addEventListener('click', closeModal);
             modal.addEventListener('click', function (e) { if (e.target === modal) { closeModal(); } });
             document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) { closeModal(); } });
+        })();
+
+        // A row's "Label" button prints that one asset through the toolbar's Print Labels form, so it carries the
+        // same filter and whatever "Start at label" value is in the box. (Without JS the link still works, from slot 1.)
+        (function () {
+            var form = document.querySelector('[data-label-form]');
+            if (!form) { return; }
+            var assetInput = form.querySelector('[data-label-asset-input]');
+
+            document.addEventListener('click', function (e) {
+                var link = e.target.closest('[data-label-asset]');
+                if (!link) { return; }
+                e.preventDefault();
+
+                assetInput.value = link.dataset.labelAsset;
+                assetInput.disabled = false;
+                form.requestSubmit();   // runs the start box's min / max check like the bulk button
+                setTimeout(function () { assetInput.disabled = true; assetInput.value = ''; }, 0);
+            });
         })();
     </script>
 </x-app-layout>

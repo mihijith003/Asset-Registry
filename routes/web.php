@@ -50,6 +50,7 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
     Route::get('/assets/print', [AssetController::class, 'print'])->name('assets.print');
+    Route::get('/assets/labels', [AssetController::class, 'labels'])->name('assets.labels');
     Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
     Route::get('/assets/{asset}/timeline', [AssetTimelineController::class, 'show'])->withTrashed()->name('assets.timeline');
     //Allocate an asset to a branch or an employee (same permission as the registry)
