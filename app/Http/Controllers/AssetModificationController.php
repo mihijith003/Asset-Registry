@@ -234,7 +234,7 @@ class AssetModificationController extends Controller
         $removedPrice = $removedPart ? round((float) $data['removed_price'], 2) : 0.0;
 
         if ($removedPrice > (float) $parent->cost) {
-            return ['The removed component cannot cost more than the asset it is removed from (' . number_format($parent->cost, 2) . ').', null];
+            return ['The removed component cannot cost more than the asset it is removed from, ' . money($parent->cost) . '.', null];
         }
 
         // The asset's current allocation is carried over to the new assets.

@@ -48,8 +48,8 @@
                     <td class="mono">{{ $assetLabel($mod->componentAsset, $mod->added_asset) }}</td>
                     <td class="mono">{{ $mod->removedAsset || $mod->removed_asset ? $assetLabel($mod->removedAsset, $mod->removed_asset) : '-' }}</td>
                     <td class="mono">{{ $assetLabel($mod->resultAsset) }}</td>
-                    <td class="num">{{ $row->before !== null ? number_format($row->before, 2) : '-' }}</td>
-                    <td class="num">{{ $row->after !== null ? number_format($row->after, 2) : '-' }}</td>
+                    <td class="num">{{ $row->before !== null ? money($row->before) : '-' }}</td>
+                    <td class="num">{{ $row->after !== null ? money($row->after) : '-' }}</td>
                     <td class="num">@include('partials.signed-amount', ['amount' => $row->change])</td>
                     <td>{{ $mod->authorized_by ?: '-' }}</td>
                 </tr>

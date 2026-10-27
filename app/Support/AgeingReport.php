@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Asset;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -38,6 +39,34 @@ class AgeingReport
         })->all();
     }
 
+    /**
+     * The date an asset's age counts from: purchase_date, else created_at (the ONE rule, shared with the dashboard).
+     */
+    public static function ageFrom(Asset $asset): ?Carbon
+    {
+        $since = $asset->purchase_date ?? $asset->created_at;
+
+        return $since ? Carbon::parse($since)->startOfDay() : null;
+    }
+
+    /**
+     * Age in whole months at $asAt.
+     */
+    public static function ageMonths(Asset $asset, Carbon $asAt): int
+    {
+        $since = self::ageFrom($asset);
+
+        return $since ? Depreciation::monthsBetween($since, $asAt->copy()->startOfDay()) : 0;
+    }
+
+    /**
+     * Share of $count in $total as a percentage, 1 dp (the Ageing Report's percentage row and the dashboard chart).
+     */
+    public static function share(int $count, int $total): float
+    {
+        return $total ? round($count / $total * 100, 1) : 0.0;
+    }
+
     public static function bandFor(int $months): string
     {
         foreach (self::BANDS as [$from, $to]) {
@@ -59,12 +88,12 @@ class AgeingReport
         (new \Illuminate\Database\Eloquent\Collection($held->pluck('asset')->all()))->loadMissing(['assetType', 'subType', 'brand']);
 
         $assets = $held->map(function ($row) use ($asAt) {
-            $since = $row->asset->purchase_date ?? $row->asset->created_at;
-            $months = $since ? Depreciation::monthsBetween(Carbon::parse($since)->startOfDay(), $asAt) : 0;
+            $since = self::ageFrom($row->asset);
+            $months = self::ageMonths($row->asset, $asAt);
 
             return (object) [
                 'asset' => $row->asset,
-                'since' => $since ? Carbon::parse($since)->toDateString() : null,
+                'since' => $since?->toDateString(),
                 'sinceIsCreated' => $row->asset->purchase_date === null,
                 'months' => $months,
                 'band' => self::bandFor($months),
@@ -92,7 +121,7 @@ class AgeingReport
 
         $total = (object) ['cells' => $cells($assets)];
         $count = $assets->count();
-        $total->share = collect(self::bands())->map(fn ($label, $band) => $count ? round($total->cells[$band]->count / $count * 100, 1) : 0.0)->all();
+        $total->share = collect(self::bands())->map(fn ($label, $band) => self::share($total->cells[$band]->count, $count))->all();
 
         return (object) ['bands' => self::bands(), 'assets' => $assets, 'types' => $types, 'total' => $total];
     }

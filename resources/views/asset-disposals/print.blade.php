@@ -33,9 +33,9 @@
             <tr><th>Brand &amp; model</th><td>{{ trim(($asset->brand_name ?? '') . ' ' . ($asset->model ?? '')) ?: '-' }}</td></tr>
             <tr><th>Financial year</th><td>{{ $asset->financial_year ?? '-' }}</td></tr>
             <tr><th>Last location</th><td>{{ $asset->location_label ?? '-' }}</td></tr>
-            <tr><th>Recorded cost (LKR)</th><td class="num">{{ number_format($asset->cost, 2) }}</td></tr>
-            <tr><th>Accumulated depreciation (to disposal date)</th><td class="num">{{ number_format($accumulated, 2) }}</td></tr>
-            <tr class="total-row"><th>Net book value written off (LKR)</th><td class="num">{{ number_format($asset->cost - $accumulated, 2) }}</td></tr>
+            <tr><th>Recorded cost</th><td class="num">{{ money($asset->cost) }}</td></tr>
+            <tr><th>Accumulated depreciation (to disposal date)</th><td class="num">{{ money($accumulated) }}</td></tr>
+            <tr class="total-row"><th>Net book value written off</th><td class="num">{{ money($asset->cost - $accumulated) }}</td></tr>
         @else
             <tr><th>Asset</th><td>Asset #{{ $disposal->asset_id }} (no longer in the registry)</td></tr>
         @endif

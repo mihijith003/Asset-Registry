@@ -18,8 +18,9 @@
         'adjustment' => 'Adjustments',
         'closing' => 'Closing NBV',
     ];
-    $money = fn ($v) => number_format($v, 2);
-    $cell = fn ($row, $key) => in_array($key, ['depreciation', 'disposals'], true) && $row->$key ? '(' . $money($row->$key) . ')' : $money($row->$key);
+    $money = fn ($v) => money($v);
+    // Deductions are shown negative, so money() puts them in brackets: Rs. (4,550,000.00).
+    $cell = fn ($row, $key) => money(in_array($key, ['depreciation', 'disposals'], true) ? -$row->$key : $row->$key);
     $hasAdjustments = $result->rows->contains(fn ($row) => abs($row->adjustment) > 0.004);
     $failing = $result->rows->reject(fn ($row) => $row->reconciles);
     if (! $result->total->reconciles && $failing->isEmpty()) {

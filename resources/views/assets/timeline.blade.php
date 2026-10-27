@@ -339,15 +339,15 @@
             </div>
             <div class="timeline-summary-item">
                 <div class="timeline-summary-label">Recorded Cost</div>
-                <div class="timeline-summary-value">LKR {{ number_format((float) $asset->cost, 2) }}</div>
+                <div class="timeline-summary-value">{{ money((float) $asset->cost) }}</div>
             </div>
             <div class="timeline-summary-item">
                 <div class="timeline-summary-label">Accumulated Depreciation</div>
-                <div class="timeline-summary-value">LKR {{ number_format($accDep, 2) }}</div>
+                <div class="timeline-summary-value">{{ money($accDep) }}</div>
             </div>
             <div class="timeline-summary-item">
                 <div class="timeline-summary-label">Net Book Value</div>
-                <div class="timeline-summary-value">LKR {{ number_format($nbv, 2) }}</div>
+                <div class="timeline-summary-value">{{ money($nbv) }}</div>
             </div>
             <div class="timeline-summary-item">
                 <div class="timeline-summary-label">Location / Allocation</div>
@@ -389,7 +389,7 @@
                         </a>
                     </div>
                     <div class="chain-node-meta">
-                        LKR {{ number_format((float) $node->cost, 2) }} &middot; {{ $nodeState }}
+                        {{ money((float) $node->cost) }} &middot; {{ $nodeState }}
                     </div>
                 </div>
             @endforeach

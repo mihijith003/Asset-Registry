@@ -4,6 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    {{-- For page scripts that format money (config/app.php currency_symbol; see app/helpers.php money()) --}}
+    <meta name="currency-symbol" content="{{ currency_symbol() }}">
 
     <title>{{ config('app.name', 'Asset Management') }}</title>
 

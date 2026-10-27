@@ -95,8 +95,11 @@
                     </div>
 
                     <div class="form-group" data-removed-price hidden>
-                        <label class="form-label">Removed Component Price (LKR) <span class="required">*</span></label>
-                        <input type="number" name="removed_price" id="removed_price" value="{{ old('removed_price') }}" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        <label class="form-label">Removed Component Price <span class="required">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-addon">{{ currency_symbol() }}</span>
+                            <input type="number" name="removed_price" id="removed_price" value="{{ old('removed_price') }}" class="form-control" step="0.01" min="0" placeholder="0.00">
+                        </div>
                         @error('removed_price')
                             <div class="error-text">{{ $message }}</div>
                         @enderror
@@ -112,7 +115,7 @@
                             <option value="">-- Select Component Asset --</option>
                             @foreach ($components as $component)
                                 <option value="{{ $component->id }}" data-cost="{{ $component->cost }}" {{ old('component_asset_id') == $component->id ? 'selected' : '' }}>
-                                    {{ $component->asset_code }} - {{ $component->brand_name }} {{ $component->model }} ({{ number_format($component->cost, 2) }})
+                                    {{ $component->asset_code }} - {{ $component->brand_name }} {{ $component->model }} &middot; {{ money($component->cost) }}
                                 </option>
                             @endforeach
                         </select>
@@ -162,8 +165,12 @@
                     var newFields = form.querySelectorAll('[data-removed-new]');
                     var priceGroup = form.querySelector('[data-removed-price]');
 
+                    // Same format as the money() helper: symbol, non-breaking space, negatives in brackets.
+                    var currency = document.querySelector('meta[name="currency-symbol"]').content;
                     function money(n) {
-                        return Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        n = Number(n);
+                        var digits = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        return currency + '\u00A0' + (n < 0 ? '(' + digits + ')' : digits);
                     }
 
                     function optionCost(select) {
@@ -247,8 +254,8 @@
                         var label = selectedRadio ? (selectedRadio.value === 'upgrade' ? 'Upgrade' : 'Downgrade') : '';
 
                         preview.innerHTML = (label ? '<strong>' + label + '</strong> &middot; ' : '')
-                            + 'new asset cost LKR ' + money(newCost)
-                            + ' <span class="muted">(' + (diff >= 0 ? '+' : '-') + money(Math.abs(diff)) + ')</span>';
+                            + 'new asset cost ' + money(newCost)
+                            + ' <span class="muted">(change ' + money(diff) + ')</span>';
                     }
 
                     form.querySelectorAll('input[name="modification_type"]').forEach(function (radio) {
@@ -349,7 +356,7 @@
                                     {{ $mod->removed_asset ?? '-' }}
                                 @endif
                                 @if ($mod->removed_price !== null)
-                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Price {{ number_format($mod->removed_price, 2) }}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-muted);">Price {{ money($mod->removed_price) }}</div>
                                 @endif
                             </td>
                             <td>
@@ -368,7 +375,7 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="text-right" style="font-weight: 500;" data-order="{{ $mod->new_value ?? -1 }}">{{ $mod->new_value !== null ? number_format($mod->new_value, 2) : '-' }}</td>
+                            <td class="text-right" style="font-weight: 500;" data-order="{{ $mod->new_value ?? -1 }}">{{ $mod->new_value !== null ? money($mod->new_value) : '-' }}</td>
                             <td>{{ $mod->new_location ?? '-' }}</td>
                             <td>{{ $mod->authorized_by ?? '-' }}</td>
                             <td style="white-space: pre-line; max-width: 260px;">{{ $mod->comments ?: '-' }}</td>

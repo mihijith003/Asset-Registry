@@ -65,8 +65,11 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="cost">Cost (LKR) <span class="required">*</span></label>
-                        <input type="number" id="cost" name="cost" value="{{ old('cost') }}" class="form-control" step="0.01" min="0" required placeholder="0.00">
+                        <label class="form-label" for="cost">Cost <span class="required">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-addon">{{ currency_symbol() }}</span>
+                            <input type="number" id="cost" name="cost" value="{{ old('cost') }}" class="form-control" step="0.01" min="0" required placeholder="0.00">
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -75,13 +78,19 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="monthly_depreciation">Monthly Depreciation (LKR) <span class="required">*</span></label>
-                        <input type="number" id="monthly_depreciation" name="monthly_depreciation" value="{{ old('monthly_depreciation') }}" class="form-control" step="0.01" min="0.01" required placeholder="e.g. 6000.00">
+                        <label class="form-label" for="monthly_depreciation">Monthly Depreciation <span class="required">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-addon">{{ currency_symbol() }}</span>
+                            <input type="number" id="monthly_depreciation" name="monthly_depreciation" value="{{ old('monthly_depreciation') }}" class="form-control" step="0.01" min="0.01" required placeholder="e.g. 6000.00">
+                        </div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="derived_residual_value">Residual Value (LKR)</label>
-                        <input type="text" id="derived_residual_value" class="form-control" readonly tabindex="-1" value="—" style="background-color: var(--bg-main); font-weight: 500;">
+                        <label class="form-label" for="derived_residual_value">Residual Value</label>
+                        <div class="input-group">
+                            <span class="input-group-addon">{{ currency_symbol() }}</span>
+                            <input type="text" id="derived_residual_value" class="form-control" readonly tabindex="-1" value="—" style="background-color: var(--bg-main); font-weight: 500;">
+                        </div>
                         <small id="derived_residual_hint" class="form-hint">Calculated: Cost &minus; (Monthly Depreciation &times; Useful Life)</small>
                     </div>
                 </div>
@@ -248,13 +257,13 @@
                                     <span style="color: var(--text-muted);">Unallocated</span>
                                 @endif
                             </td>
-                            <td class="text-right" style="font-weight: 500;" data-order="{{ $asset->cost }}">{{ number_format($asset->cost, 2) }}</td>
+                            <td class="text-right" style="font-weight: 500;" data-order="{{ $asset->cost }}">{{ money($asset->cost) }}</td>
                             @php
                                 $accumulated = $asset->accumulatedDepreciation();
                                 $bookValue = $asset->netBookValue();
                             @endphp
-                            <td class="text-right" data-order="{{ $accumulated }}">{{ number_format($accumulated, 2) }}</td>
-                            <td class="text-right" style="font-weight: 500;" data-order="{{ $bookValue }}">{{ number_format($bookValue, 2) }}</td>
+                            <td class="text-right" data-order="{{ $accumulated }}">{{ money($accumulated) }}</td>
+                            <td class="text-right" style="font-weight: 500;" data-order="{{ $bookValue }}">{{ money($bookValue) }}</td>
                             <td>{{ $asset->created_at ? $asset->created_at->format('Y-m-d') : '-' }}</td>
                             {{-- NEW: opens the Allocate dialog (script at the bottom of this page) --}}
                             <td style="text-align: right;">

@@ -102,17 +102,20 @@
                     <!-- Price -->
                     <div class="form-group">
                         <label for="price" class="form-label">
-                            Price (LKR) <span class="required">*</span>
+                            Price <span class="required">*</span>
                         </label>
-                        <input type="number" 
-                               id="price" 
-                               name="price" 
-                               value="{{ old('price') }}"
-                               step="0.01" 
-                               min="0"
-                               required
-                               placeholder="0.00"
-                               class="form-control">
+                        <div class="input-group">
+                            <span class="input-group-addon">{{ currency_symbol() }}</span>
+                            <input type="number" 
+                                   id="price" 
+                                   name="price" 
+                                   value="{{ old('price') }}"
+                                   step="0.01" 
+                                   min="0"
+                                   required
+                                   placeholder="0.00"
+                                   class="form-control">
+                        </div>
                         @error('price')
                             <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
                         @enderror
@@ -200,7 +203,7 @@
                                 @endif
                             </td>
                             <td style="text-align: right; font-weight: 500;" data-order="{{ $sale->price }}">
-                                {{ number_format($sale->price, 2) }}
+                                {{ money($sale->price) }}
                             </td>
                             <td>
                                 {{ $sale->payment_method ?: '-' }}

@@ -8,7 +8,7 @@
 @php
     $bands = $ageing->bands;
     $columns = $bands + ['total' => 'Total'];
-    $money = fn ($v) => number_format($v, 2);
+    $money = fn ($v) => money($v);
     $tableClass = $print ? 'data' : 'table';
     $num = 'text-align: right; font-variant-numeric: tabular-nums;';
     $kind = fn ($a) => ($a->asset->assetType->type_name ?? '-') . ' / ' . trim($a->asset->subType->sub_type_name ?? '-');

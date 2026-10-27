@@ -27,9 +27,9 @@
         <div class="card-body">
             <div class="summary-row">
                 <div><span class="muted">Figures up to</span> <strong>{{ $closingDate->format('Y-m-d') }}</strong></div>
-                <div><span class="muted">Total cost</span> <strong>{{ number_format($totalCost, 2) }}</strong></div>
-                <div><span class="muted">Depreciation for {{ $selected }}</span> <strong>{{ number_format($totalCharge, 2) }}</strong></div>
-                <div><span class="muted">Net book value</span> <strong>{{ number_format($totalBookValue, 2) }}</strong></div>
+                <div><span class="muted">Total cost</span> <strong>{{ money($totalCost) }}</strong></div>
+                <div><span class="muted">Depreciation for {{ $selected }}</span> <strong>{{ money($totalCharge) }}</strong></div>
+                <div><span class="muted">Net book value</span> <strong>{{ money($totalBookValue) }}</strong></div>
             </div>
         </div>
 
@@ -60,11 +60,11 @@
                                 <span class="badge {{ $row->status === 'Active' ? 'badge-success' : 'badge-secondary' }}">{{ $row->status }}</span>
                             </td>
                             <td class="text-right" data-order="{{ $row->life_years ?? -1 }}">{{ $row->life_years ?? 'Not set' }}</td>
-                            <td class="text-right" data-order="{{ $row->cost }}">{{ number_format($row->cost, 2) }}</td>
-                            <td class="text-right" data-order="{{ $row->opening }}">{{ number_format($row->opening, 2) }}</td>
-                            <td class="text-right" data-order="{{ $row->charge }}">{{ number_format($row->charge, 2) }}</td>
-                            <td class="text-right" data-order="{{ $row->closing }}">{{ number_format($row->closing, 2) }}</td>
-                            <td class="text-right" style="font-weight: 500;" data-order="{{ $row->book_value }}">{{ number_format($row->book_value, 2) }}</td>
+                            <td class="text-right" data-order="{{ $row->cost }}">{{ money($row->cost) }}</td>
+                            <td class="text-right" data-order="{{ $row->opening }}">{{ money($row->opening) }}</td>
+                            <td class="text-right" data-order="{{ $row->charge }}">{{ money($row->charge) }}</td>
+                            <td class="text-right" data-order="{{ $row->closing }}">{{ money($row->closing) }}</td>
+                            <td class="text-right" style="font-weight: 500;" data-order="{{ $row->book_value }}">{{ money($row->book_value) }}</td>
                         </tr>
                     @endforeach
                 </tbody>

@@ -2,7 +2,7 @@
     Detail behind the Adjustments column: the revaluation records whose recorded previous value differs from what the
     current depreciation figures produce. Collapsed on screen (opened from an Adjustments figure), always shown in print.
 --}}
-@php($money = fn ($v) => number_format($v, 2))
+@php($money = fn ($v) => money($v))
 <div id="period-adjustments" @unless ($print) hidden @endunless style="margin-top: 1rem;">
     <h4 style="margin: 0 0 0.25rem; font-size: 0.95rem;">Adjustments</h4>
     <p style="margin: 0 0 0.5rem; font-size: 0.85rem; color: #475569;">

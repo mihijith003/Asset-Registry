@@ -8,6 +8,7 @@ export default defineConfig({
                 'resources/css/app.css',
                 'resources/js/app.js',
                 'resources/js/labels.js', // QR label sheet only (assets/labels.blade.php)
+                'resources/js/dashboard.js', // dashboard charts only (dashboard.blade.php)
             ],
             refresh: true,
         }),

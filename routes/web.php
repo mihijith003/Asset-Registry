@@ -7,6 +7,7 @@ use App\Http\Controllers\AssetModificationController;
 use App\Http\Controllers\AssetRevaluationController;
 use App\Http\Controllers\AssetSaleController;
 use App\Http\Controllers\AssetTimelineController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
@@ -33,9 +34,7 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
 // Profile management
 Route::middleware('auth')->group(function () {

@@ -24,7 +24,7 @@
             <h3>Movement Summary</h3>
             <p>Period {{ $period }}@if ($closingNote) &mdash; <strong style="color: #b45309;">{{ $closingNote }}</strong>@endif</p>
         </div>
-        @include('partials.print-summary-button', ['route' => 'reports.print', 'params' => ['tab' => 'period']])
+        @include('partials.print-summary-button', ['route' => 'reports.print', 'params' => ['tab' => 'period'], 'label' => 'Print Summary'])
     </div>
     <div class="table-responsive" style="padding: 0 1.5rem 1.5rem;">
         @include('reports.partials.period-movement', ['result' => $result, 'tableClass' => 'table'])
