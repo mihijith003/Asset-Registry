@@ -42,6 +42,9 @@
                 <a href="{{ route('asset-disposals.index') }}" class="nav-item {{ request()->routeIs('asset-disposals.*') ? 'active' : '' }}">
                     Asset Disposal
                 </a>
+                <a href="{{ route('reports.period') }}" class="nav-item {{ request()->routeIs('reports.period*') ? 'active' : '' }}">
+                    Reporting
+                </a>
             </nav>
         </aside>
 

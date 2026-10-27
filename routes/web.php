@@ -9,6 +9,7 @@ use App\Http\Controllers\AssetSaleController;
 use App\Http\Controllers\AssetTimelineController;
 use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\AssetTypeController;
@@ -71,6 +72,12 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
 // Depreciation report (same permission as the registry)
 Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/depreciation', [DepreciationController::class, 'index'])->name('depreciation.index');
+});
+
+// Period Report (same permission as the depreciation page)
+Route::middleware(['auth', 'permission:register assets'])->group(function () {
+    Route::get('/reports/period', [ReportController::class, 'index'])->name('reports.period');
+    Route::get('/reports/period/print', [ReportController::class, 'print'])->name('reports.period.print');
 });
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {
