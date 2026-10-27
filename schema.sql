@@ -46,9 +46,7 @@ CREATE TABLE asset_sub_types (
     asset_type_id BIGINT UNSIGNED NOT NULL,
     sub_type_name VARCHAR(100) NOT NULL,
     sub_type_code VARCHAR(10) NOT NULL,          -- the "LAP" in EL-LAP-001
-    -- Default useful life for assets of this sub type. NULL = not
-    -- depreciated. Edited on the Depreciation page.
-    useful_life_years SMALLINT UNSIGNED NULL,
+    
     created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_sub_types_type FOREIGN KEY (asset_type_id)
