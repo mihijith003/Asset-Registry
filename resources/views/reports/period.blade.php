@@ -27,6 +27,8 @@
         </div>
     </div>
 
+    @include('reports.partials.period-sections', ['sections' => $sections, 'print' => false])
+
     <script>
         document.querySelectorAll('[data-period-preset]').forEach(function (button) {
             button.addEventListener('click', function () {

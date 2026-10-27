@@ -3,8 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\FiltersByAssetType;
+use App\Models\AssetDisposal;
+use App\Models\AssetModification;
+use App\Models\AssetRevaluation;
+use App\Models\AssetSale;
 use App\Support\Depreciation;
 use App\Support\PeriodMovement;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
@@ -15,6 +20,16 @@ use Illuminate\View\View;
 class ReportController extends Controller
 {
     use FiltersByAssetType;
+
+    /** Detail sections below the movement summary, in display order. */
+    public const SECTIONS = [
+        'registrations' => 'Registrations',
+        'sales' => 'Sales',
+        'disposals' => 'Disposals',
+        'modifications' => 'Modifications',
+        'revaluations' => 'Revaluations',
+        'depreciation' => 'Depreciation',
+    ];
 
     public function index(Request $request): View
     {
@@ -56,12 +71,179 @@ class ReportController extends Controller
             ? "Closing values as at {$movement->closingDate} (period end {$to->toDateString()} is in the future)"
             : null;
 
+        $chosen = $this->chosenSections($request);
+        $sections = $this->sections($movement, $result, $filters, $chosen);
+
         $filterFields = [
             ['name' => 'date_from', 'label' => 'Date from', 'type' => 'date', 'default' => $input['date_from']],
             ['name' => 'date_to', 'label' => 'Date to', 'type' => 'date', 'default' => $input['date_to']],
+            ['name' => 'sections', 'label' => 'Include sections', 'type' => 'checkboxes', 'options' => self::SECTIONS, 'checked' => $chosen],
         ];
 
-        return compact('result', 'movement', 'period', 'closingNote', 'presets', 'filterFields');
+        return compact('result', 'movement', 'period', 'closingNote', 'presets', 'filterFields', 'sections');
+    }
+
+    /**
+     * Ticked sections from ?sections[]=... (all of them when the key is absent: first visit, presets, Clear). The
+     * form always sends a "none" marker, so unticking every box really means no detail sections.
+     */
+    private function chosenSections(Request $request): array
+    {
+        if (! $request->query->has('sections')) {
+            return array_keys(self::SECTIONS);
+        }
+
+        return array_values(array_intersect(array_keys(self::SECTIONS), (array) $request->query('sections')));
+    }
+
+    /**
+     * The detail sections below the movement summary. Each one uses the summary's own figures (PeriodMovement traces)
+     * for values, the same period (from .. the closing date) and the same type / sub type filter, and loads its
+     * relations here: the views run no queries.
+     *
+     * A section whose total must equal a summary column carries 'check' => [label, section total, summary figure].
+     */
+    private function sections(PeriodMovement $movement, object $result, array $filters, array $chosen): array
+    {
+        $from = $movement->from->toDateString();
+        $until = $movement->closingDate;
+        $traces = $result->traces;
+        $between = fn ($query, string $column) => $query->whereDate($column, '>=', $from)->whereDate($column, '<=', $until);
+        $assetRelations = ['asset.assetType', 'asset.subType'];
+
+        // Assets in the summary (all withTrashed): give them what the registration / depreciation rows show.
+        (new EloquentCollection($traces->pluck('asset')->all()))->loadMissing(['assetType', 'subType', 'brand']);
+
+        $sections = [];
+
+        if (in_array('registrations', $chosen, true)) {
+            $rows = $traces->filter(fn ($t) => isset($t->valueAt['purchase:0']))
+                ->map(fn ($t) => (object) [
+                    'date' => collect($t->events)->firstWhere(1, 'purchase')[0],
+                    'asset' => $t->asset,
+                    'cost' => $t->valueAt['purchase:0']['nbv'],
+                ])
+                ->sortBy(fn ($r) => $r->date . $r->asset->asset_code)->values();
+            $sections['registrations'] = [
+                'rows' => $rows,
+                'totals' => ['cost' => round($rows->sum('cost'), 2)],
+                'check' => ['Additions', round($rows->sum('cost'), 2), $result->total->additions],
+            ];
+        }
+
+        if (in_array('sales', $chosen, true)) {
+            $sales = $this->applyTypeFilter($between(AssetSale::with($assetRelations), 'sale_date'), $filters, 'asset')
+                ->orderBy('sale_date')->orderBy('id')->get();
+            $rows = $sales->map(function (AssetSale $sale) use ($traces) {
+                $at = $traces->get($sale->asset_id)?->valueAt['sale:' . $sale->id] ?? null;
+
+                return (object) [
+                    'sale' => $sale,
+                    'cost' => $at['cost'] ?? null,
+                    'nbv' => $at['nbv'] ?? null,
+                    'gain' => $at ? round((float) $sale->price - $at['nbv'], 2) : null,
+                ];
+            });
+            $sections['sales'] = ['rows' => $rows, 'totals' => [
+                'cost' => round($rows->sum('cost'), 2),
+                'nbv' => round($rows->sum('nbv'), 2),
+                'proceeds' => round($rows->sum(fn ($r) => (float) $r->sale->price), 2),
+                'gain' => round($rows->sum('gain'), 2),
+            ]];
+        }
+
+        if (in_array('disposals', $chosen, true)) {
+            $disposals = $this->applyTypeFilter($between(AssetDisposal::with($assetRelations), 'disposal_date'), $filters, 'asset')
+                ->orderBy('disposal_date')->orderBy('id')->get();
+            $rows = $disposals->map(function (AssetDisposal $disposal) use ($traces, $movement) {
+                // Approved: the value the summary wrote off. Pending / rejected: the asset was still held that day.
+                $trace = $traces->get($disposal->asset_id);
+                $at = $trace?->valueAt['disposal:' . $disposal->id] ?? null;
+                if (! $at && $trace && $disposal->approval_status !== 'approved') {
+                    $at = $movement->bookValue($trace->asset, substr((string) $disposal->disposal_date, 0, 10));
+                }
+
+                return (object) ['disposal' => $disposal, 'cost' => $at['cost'] ?? null, 'nbv' => $at['nbv'] ?? null];
+            });
+            $counted = $rows->reject(fn ($r) => $r->disposal->approval_status === 'rejected');
+            $sections['disposals'] = ['rows' => $rows, 'totals' => [
+                'byMethod' => $counted->groupBy(fn ($r) => $r->disposal->method ?: 'Not stated')->sortKeys()
+                    ->map(fn ($group) => (object) ['count' => $group->count(), 'cost' => round($group->sum('cost'), 2), 'nbv' => round($group->sum('nbv'), 2)]),
+                'rejected' => $rows->count() - $counted->count(),
+                'approvedNbv' => round($rows->where('disposal.approval_status', 'approved')->sum('nbv'), 2),
+            ]];
+        }
+
+        if (isset($sections['sales']) && isset($sections['disposals'])) {
+            $sections['disposals']['check'] = ['Disposals & Sales',
+                round($sections['sales']['totals']['nbv'] + $sections['disposals']['totals']['approvedNbv'], 2), $result->total->disposals];
+        }
+
+        if (in_array('modifications', $chosen, true)) {
+            $mods = $this->applyTypeFilter($between(AssetModification::with(['asset', 'componentAsset', 'removedAsset', 'resultAsset']), 'modification_date'), $filters, 'asset')
+                ->orderBy('modification_date')->orderBy('id')->get();
+            $reverted = $mods->whereNotNull('reverted_at')->count();   // ignored by the summary too
+            $rows = $mods->whereNull('reverted_at')->values()->map(function (AssetModification $mod) {
+                $before = $mod->parent_original_cost !== null ? (float) $mod->parent_original_cost : null;
+                $after = $mod->new_value !== null ? (float) $mod->new_value : null;
+
+                return (object) ['mod' => $mod, 'before' => $before, 'after' => $after,
+                    'change' => $before !== null && $after !== null ? round($after - $before, 2) : null];
+            });
+            $sections['modifications'] = ['rows' => $rows, 'totals' => [
+                'upgrades' => $rows->where('mod.modification_type', 'upgrade')->count(),
+                'downgrades' => $rows->where('mod.modification_type', 'downgrade')->count(),
+                'change' => round($rows->sum('change'), 2),
+                'unknown' => $rows->whereNull('change')->count(),
+                'reverted' => $reverted,
+            ]];
+        }
+
+        if (in_array('revaluations', $chosen, true)) {
+            $revals = $this->applyTypeFilter($between(AssetRevaluation::with([...$assetRelations, 'asset.layers', 'resultAsset.layers']), 'revaluation_date'), $filters, 'asset')
+                ->orderBy('revaluation_date')->orderBy('id')->get();
+            $rows = $revals->map(function (AssetRevaluation $reval) {
+                // The layer(s) the revaluation opened: on the successor, or on the asset itself (legacy, in place).
+                $date = $reval->revaluation_date->toDateString();
+                $opened = ($reval->resultAsset ?? $reval->asset)?->layers
+                    ->filter(fn ($layer) => $layer->start_date?->toDateString() === $date) ?? collect();
+                $monthly = $opened->whereNotNull('monthly_depreciation');
+
+                return (object) [
+                    'reval' => $reval,
+                    'change' => round($reval->revalued_amount - $reval->previous_value, 2),
+                    'monthly' => $monthly->isEmpty() ? null : round($monthly->sum(fn ($l) => (float) $l->monthly_depreciation), 2),
+                ];
+            });
+            $change = round($rows->sum('change'), 2);
+            $sections['revaluations'] = ['rows' => $rows, 'totals' => [
+                'previous' => round($rows->sum(fn ($r) => $r->reval->previous_value), 2),
+                'revalued' => round($rows->sum(fn ($r) => $r->reval->revalued_amount), 2),
+                'change' => $change,
+            ], 'check' => ['Revaluation Adj.', $change, $result->total->revaluation]];
+        }
+
+        if (in_array('depreciation', $chosen, true)) {
+            $rows = $movement->depreciationDetail($result);
+            $charge = round($rows->sum('charge'), 2);
+            $sections['depreciation'] = ['rows' => $rows, 'totals' => [
+                'charge' => $charge,
+                'accumulated' => round($rows->sum('accumulated'), 2),
+                'nbv' => round($rows->sum('nbv'), 2),
+            ], 'check' => ['Depreciation', $charge, $result->total->depreciation]];
+        }
+
+        // The same check as the summary's reconciliation: a gap above the tolerance is shown, never hidden.
+        foreach ($sections as &$section) {
+            if (isset($section['check'])) {
+                [$column, $detail, $summary] = $section['check'];
+                $section['check'] = (object) ['column' => $column, 'detail' => $detail, 'summary' => $summary,
+                    'difference' => round($detail - $summary, 2), 'ok' => abs($detail - $summary) <= PeriodMovement::TOLERANCE];
+            }
+        }
+        unset($section);
+
+        return $sections;
     }
 
     /**

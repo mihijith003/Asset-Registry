@@ -15,4 +15,6 @@
     ])
 
     @include('reports.partials.period-movement', ['result' => $result, 'tableClass' => 'data'])
+
+    @include('reports.partials.period-sections', ['sections' => $sections, 'print' => true])
 @endsection

@@ -130,7 +130,8 @@ class PeriodMovement
             'depreciation' => $sum('depreciation'), 'disposals' => $sum('disposals'), 'closing' => $sum('closing'),
         ], collect($adjustments), collect($errors));
 
-        return (object) ['rows' => $rows, 'total' => $total, 'assets' => $traces->filter(fn ($t) => $t->involved)->values(), 'notes' => $notes];
+        return (object) ['rows' => $rows, 'total' => $total, 'assets' => $traces->filter(fn ($t) => $t->involved)->values(),
+            'traces' => $traces, 'notes' => $notes];
     }
 
     /**
@@ -295,6 +296,9 @@ class PeriodMovement
         $t = (object) [
             'asset' => $asset, 'opening' => 0.0, 'additions' => 0.0, 'reval_stored' => 0.0, 'depreciation' => 0.0,
             'disposals' => 0.0, 'closing' => 0.0, 'events' => [], 'involved' => false,
+            'valueAt' => [],   // "kind:ref" => ['nbv' => .., 'cost' => ..] at each in-period entry / exit (detail sections)
+            'exit' => null,    // the last exit: ['date' => .., 'nbv' => .., 'cost' => ..]
+            'intervals' => [], 'held' => false,
         ];
 
         $held = false;
@@ -326,6 +330,7 @@ class PeriodMovement
                     case 'mod_revival':
                     case 'reval_in':
                         $v = $this->value($asset, $date, $mode);
+                        $at = ['nbv' => $v, 'cost' => $this->cost($asset, $date, $mode)];
                         $held = true;
                         $holdStart = $date;
                         if ($inPeriod) {
@@ -336,6 +341,7 @@ class PeriodMovement
                                 $eventIo[$e['key']][$type]['label'] ??= $e['label'];
                             }
                             $t->events[] = [$date, $e['kind'], $e['label'] ?? 'Purchase', $v];
+                            $t->valueAt[$e['kind'] . ':' . $e['ref']] = $at;
                         }
                         break;
 
@@ -353,6 +359,8 @@ class PeriodMovement
 
                     default:   // mod_out, reval_out, sale, disposal
                         $v = $this->value($asset, $date, $mode);
+                        $at = ['nbv' => $v, 'cost' => $this->cost($asset, $date, $mode)];
+                        $t->exit = ['date' => $date] + $at;
                         $held = false;
                         $intervals[] = [$holdStart, $date];
                         if ($inPeriod) {
@@ -371,6 +379,7 @@ class PeriodMovement
                                 unset($io);
                             }
                             $t->events[] = [$date, $e['kind'], $e['label'], $v];
+                            $t->valueAt[$e['kind'] . ':' . $e['ref']] = $at;
                         }
                 }
             }
@@ -396,6 +405,8 @@ class PeriodMovement
             }
         }
         $t->depreciation = round($t->depreciation, 2);
+        $t->intervals = $intervals;
+        $t->held = $held;
 
         $t->involved = $t->opening || $t->closing || $t->additions || $t->disposals || $t->reval_stored || $t->events;
 
@@ -446,24 +457,114 @@ class PeriodMovement
      */
     private function value(Asset $asset, string $date, string $mode): float
     {
-        $sum = 0.0;
+        return round($this->inForce($asset, $date, $mode)->sum(fn ($layer) => (float) $layer->cost - $this->acc($layer, $date)), 2);
+    }
 
-        foreach ($asset->layers as $layer) {
+    private function cost(Asset $asset, string $date, string $mode): float
+    {
+        return round($this->inForce($asset, $date, $mode)->sum(fn ($layer) => (float) $layer->cost), 2);
+    }
+
+    private function inForce(Asset $asset, string $date, string $mode): Collection
+    {
+        return $asset->layers->filter(function ($layer) use ($date, $mode) {
             $s = $this->d($layer->start_date);
             $e = $this->d($layer->end_date);
 
-            $inForce = match ($mode) {
+            return match ($mode) {
                 'after' => $s <= $date && ($e === null || $e > $date),
                 'during' => $s <= $date && ($e === null || $e >= $date),
                 'before' => $s <= $date && (($e !== null && $e >= $date) || ($e === null && $s < $date)),
             };
+        });
+    }
 
-            if ($inForce) {
-                $sum += (float) $layer->cost - $this->acc($layer, $date);
+    /**
+     * Cost and book value of an asset at a moment on $date, for an event the summary does not move value on
+     * (a pending or rejected disposal claim): the layers in force during that day.
+     *
+     * @return array{cost: float, nbv: float}
+     */
+    public function bookValue(Asset $asset, string $date): array
+    {
+        return ['cost' => $this->cost($asset, $date, 'during'), 'nbv' => $this->value($asset, $date, 'during')];
+    }
+
+    // ------------------------------------------------------------------ depreciation detail
+
+    /**
+     * One row per asset that was charged depreciation in the period, for the Depreciation detail section.
+     *
+     * Computed independently of replay()'s accumulated() differences - from whole months charged per layer while the
+     * asset was held - so the section total checked against the summary's Depreciation column is a real
+     * cross-check. Accumulated / NBV are at the period end, or at the date the asset left the register.
+     */
+    public function depreciationDetail(object $result): Collection
+    {
+        return $result->traces->map(function ($t) {
+            $charge = 0.0;
+            $charging = [];   // layer id => months charged
+
+            foreach ($t->intervals as [$start, $end]) {
+                $a = max($start, $this->openingDate);
+                $b = min($end ?? $this->closingDate, $this->closingDate);
+                if ($a >= $b) {
+                    continue;
+                }
+                foreach ($t->asset->layers as $layer) {
+                    [$monthsA, $amountA] = $this->charged($layer, $a);
+                    [$monthsB, $amountB] = $this->charged($layer, $b);
+                    if ($amountB - $amountA > 0.004) {
+                        $charge += $amountB - $amountA;
+                        $charging[$layer->id] = ($charging[$layer->id] ?? 0) + $monthsB - $monthsA;
+                    }
+                }
             }
+
+            if (! $charging) {
+                return null;
+            }
+
+            // Concurrent layers (slices of a combined asset) add up to one monthly amount; a layer that replaced
+            // another during the period (in-place revaluation) means the monthly amount changed.
+            $layers = $t->asset->layers->whereIn('id', array_keys($charging));
+            $sequential = $layers->contains(fn ($x) => $x->end_date
+                && $layers->contains(fn ($y) => $y->id !== $x->id && $this->d($y->start_date) >= $this->d($x->end_date)));
+            $at = $t->held
+                ? ['date' => null, 'nbv' => $t->closing, 'cost' => $this->cost($t->asset, $this->closingDate, 'after')]
+                : $t->exit;
+
+            return (object) [
+                'asset' => $t->asset,
+                'cost' => $at['cost'],
+                'monthly' => $sequential ? null : round($layers->sum(fn ($l) => (float) $l->monthly_depreciation), 2),
+                'months' => max($charging),
+                'charge' => round($charge, 2),
+                'accumulated' => round($at['cost'] - $at['nbv'], 2),
+                'nbv' => $at['nbv'],
+                'leftOn' => $at['date'],
+            ];
+        })->filter()->sortBy(fn ($row) => $row->asset->asset_code)->values();
+    }
+
+    /**
+     * [whole months charged, amount charged] on one layer from its start up to $date (the rules of
+     * Depreciation::accumulated: bounded by life and end_date; null life / monthly = not depreciated).
+     */
+    private function charged($layer, string $date): array
+    {
+        $life = (int) $layer->useful_life_months;
+        $monthly = (float) $layer->monthly_depreciation;
+        $start = $this->d($layer->start_date);
+        if ($life <= 0 || $monthly <= 0 || (float) $layer->cost <= 0 || ! $start || $start > $date) {
+            return [0, 0.0];
         }
 
-        return round($sum, 2);
+        $end = $this->d($layer->end_date);
+        $until = $end && $end < $date ? $end : $date;
+        $months = min($life, Depreciation::monthsBetween(Carbon::parse($start), Carbon::parse($until)));
+
+        return [$months, min($months * $monthly, (float) $layer->cost, $monthly * $life)];
     }
 
     private function acc($layer, string $date): float
