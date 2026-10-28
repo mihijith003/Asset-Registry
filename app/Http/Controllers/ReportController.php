@@ -54,7 +54,18 @@ class ReportController extends Controller
     {
         return $this->tab($request) === 'ageing'
             ? view('reports.ageing-print', $this->ageing($request))
-            : view('reports.period-print', $this->report($request));
+            : view('reports.period-print', $this->report($request, $this->printSection($request)));
+    }
+
+    /**
+     * Period Report print of ONE part: ?section=summary (movement summary + adjustments) or a SECTIONS key (that
+     * detail section alone). Absent or not a known part: the full report (summary + the ticked sections).
+     */
+    private function printSection(Request $request): ?string
+    {
+        $section = $request->query('section');
+
+        return is_string($section) && ($section === 'summary' || isset(self::SECTIONS[$section])) ? $section : null;
     }
 
     
@@ -90,7 +101,11 @@ class ReportController extends Controller
         return ['ageing' => $ageing, 'asAt' => $asAt->toDateString(), 'filterFields' => $filterFields];
     }
 
-    private function report(Request $request): array
+    /**
+     * $only (print views): 'summary' = no detail sections; a SECTIONS key = only that section, ticked or not;
+     * null = the ticked sections. The movement summary is always computed - the sections' checks compare against it.
+     */
+    private function report(Request $request, ?string $only = null): array
     {
         $presets = $this->presets();
         $filters = $this->typeFilters($request);
@@ -121,7 +136,12 @@ class ReportController extends Controller
             : null;
 
         $chosen = $this->chosenSections($request);
-        $sections = $this->sections($movement, $result, $filters, $chosen);
+        $built = match (true) {
+            $only === 'summary' => [],
+            $only !== null => [$only],
+            default => $chosen,
+        };
+        $sections = $this->sections($movement, $result, $filters, $built);
 
         $filterFields = [
             ['name' => 'date_from', 'label' => 'Date from', 'type' => 'date', 'default' => $input['date_from']],
@@ -129,7 +149,7 @@ class ReportController extends Controller
             ['name' => 'sections', 'label' => 'Include sections', 'type' => 'checkboxes', 'options' => self::SECTIONS, 'checked' => $chosen],
         ];
 
-        return compact('result', 'movement', 'period', 'closingNote', 'presets', 'filterFields', 'sections');
+        return compact('result', 'movement', 'period', 'closingNote', 'presets', 'filterFields', 'sections', 'only');
     }
 
     /**

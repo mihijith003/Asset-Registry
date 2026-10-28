@@ -1,4 +1,9 @@
-{{-- Period Report tab (reports.index?tab=period, the default): its own filter bar, presets, summary and sections. --}}
+{{-- Period Report tab (reports.index?tab=period, the default): its own filter bar, presets, summary and sections.
+     "Print Full Report" prints the summary and every ticked section; each card's "Print" prints that card alone. --}}
+
+<div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+    @include('partials.print-summary-button', ['route' => 'reports.print', 'params' => ['tab' => 'period', 'section' => null], 'label' => 'Print Full Report'])
+</div>
 
 {{-- Period + type / sub type filter (GET). The presets fill in the two dates and apply. --}}
 @include('partials.type-filter', [
@@ -24,7 +29,7 @@
             <h3>Movement Summary</h3>
             <p>Period {{ $period }}@if ($closingNote) &mdash; <strong style="color: #b45309;">{{ $closingNote }}</strong>@endif</p>
         </div>
-        @include('partials.print-summary-button', ['route' => 'reports.print', 'params' => ['tab' => 'period'], 'label' => 'Print Summary'])
+        @include('partials.print-summary-button', ['route' => 'reports.print', 'params' => ['tab' => 'period', 'section' => 'summary'], 'label' => 'Print'])
     </div>
     <div class="table-responsive" style="padding: 0 1.5rem 1.5rem;">
         @include('reports.partials.period-movement', ['result' => $result, 'tableClass' => 'table'])
