@@ -47,9 +47,9 @@ class ReportController extends Controller
         return view('reports.reporting', ['tab' => $tab, 'tabs' => self::TABS] + $data);
     }
 
-    /**
-     * Print Summary of ONE tab, with that tab's filters (same query string as the screen).
-     */
+    
+     //Print Summary of ONE tab, with that tab's filters (same query string as the screen).
+    
     public function print(Request $request): View
     {
         return $this->tab($request) === 'ageing'
@@ -57,9 +57,9 @@ class ReportController extends Controller
             : view('reports.period-print', $this->report($request));
     }
 
-    /**
-     * The active tab: ?tab= when it names a tab, else the Period Report.
-     */
+    
+      //The active tab: ?tab= when it names a tab, else the Period Report.
+     
     private function tab(Request $request): string
     {
         $tab = $request->query('tab');
@@ -67,9 +67,9 @@ class ReportController extends Controller
         return is_string($tab) && isset(self::TABS[$tab]) ? $tab : 'period';
     }
 
-    /**
-     * Ageing Report: ?as_at= (default today, not in the future) and the type / sub type filter.
-     */
+    
+    //Ageing Report: ?as_at= (default today, not in the future) and the type / sub type filter.
+     
     private function ageing(Request $request): array
     {
         $filters = $this->typeFilters($request);
@@ -295,9 +295,9 @@ class ReportController extends Controller
         return $sections;
     }
 
-    /**
-     * Quick presets for the period selector. "Month End" is Last Month.
-     */
+    
+    //Quick presets for the period selector. "Month End" is Last Month.
+    
     private function presets(): array
     {
         $today = Carbon::today();

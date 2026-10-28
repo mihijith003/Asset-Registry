@@ -71,9 +71,7 @@ class AssetController extends Controller
     }
 
     /**
-     * Printable QR label sheet for the same current assets and filters as the registry list. ?start=N leaves the
-     * first N-1 label slots blank so a part-used sticker sheet can be reused; ?asset=<id> (a registry row's Label
-     * button) restricts the sheet to that one asset, still within active() and the filter.
+     * Printable QR label sheet for the same current assets and filters as the registry list. 
      */
     public function labels(Request $request): View
     {

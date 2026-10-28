@@ -75,9 +75,9 @@ class DashboardController extends Controller
         return view('dashboard', compact('tiles', 'charts', 'activity', 'links'));
     }
 
-    /**
-     * Counts by sub type, largest first; beyond the top TOP_SUB_TYPES grouped as "Other".
-     */
+    
+     //Counts by sub type, largest first; beyond the top TOP_SUB_TYPES grouped as "Other".
+     
     private function bySubType(Collection $held): array
     {
         $counts = $held->countBy(fn ($h) => trim($h->asset->subType->sub_type_name ?? 'No sub type'))

@@ -428,9 +428,9 @@ class AssetModificationController extends Controller
         return [null, $type, $original?->asset_code];
     }
 
-    /**
-     * "ASUS + Gigabyte" from the parent and added names, with the removed part's name taken out of the parent's.
-     */
+    
+     //"ASUS + Gigabyte" from the parent and added names, with the removed part's name taken out of the parent's.
+    
     private function joinNames(?string $parent, ?string $added, ?string $removed): string
     {
         $parts = $parent ? explode(' + ', $parent) : [];
@@ -451,9 +451,9 @@ class AssetModificationController extends Controller
         return Str::limit(implode(' + ', array_filter($parts)), 100, '');
     }
 
-    /**
-     * Derive asset-level useful_life_months, monthly_depreciation, and residual_value from a set of layer arrays.
-     */
+    
+      //Derive asset-level useful_life_months, monthly_depreciation, and residual_value from a set of layer arrays.
+
     private function summarizeLayers(array $layers, float $totalCost): array
     {
         $active = array_filter($layers, fn ($l) => empty($l['end_date']));
