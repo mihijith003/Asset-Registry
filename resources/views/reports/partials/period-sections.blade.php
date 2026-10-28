@@ -33,7 +33,11 @@
         <h2>{{ $title }}</h2>
     @else
         <div class="card period-section">
-        <div class="card-header"><div><h3>{{ $title }}</h3></div></div>
+        <div class="card-header">
+            <div><h3>{{ $title }}</h3></div>
+            {{-- Prints this section alone (reports.print?section=..., same period and filters) --}}
+            @include('partials.print-summary-button', ['route' => 'reports.print', 'params' => ['tab' => 'period', 'section' => $key], 'label' => 'Print'])
+        </div>
         <div class="table-responsive" style="padding: 0 1.5rem 1.5rem;">
     @endif
 
