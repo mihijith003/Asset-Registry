@@ -127,12 +127,12 @@ class AssetTimelineController extends Controller
                 'transitions' => $transitions,
                 'figures' => array_filter([
                     'Asset Code' => ['asset' => $node],
-                    'Recorded Cost' => 'LKR ' . number_format((float) $node->cost, 2),
+                    'Recorded Cost' => money((float) $node->cost),
                     'Purchase Date' => $node->purchase_date ? $node->purchase_date->format('Y-m-d') : null,
                     'Financial Year' => $node->financial_year,
                     'Useful Life' => $node->useful_life_months ? $node->useful_life_months . ' months' : null,
-                    'Monthly Depreciation' => $node->monthly_depreciation !== null ? 'LKR ' . number_format((float) $node->monthly_depreciation, 2) : null,
-                    'Residual Value' => ((float) $node->residual_value > 0) ? 'LKR ' . number_format((float) $node->residual_value, 2) : null,
+                    'Monthly Depreciation' => $node->monthly_depreciation !== null ? money((float) $node->monthly_depreciation) : null,
+                    'Residual Value' => ((float) $node->residual_value > 0) ? money((float) $node->residual_value) : null,
                     'Supplier' => $node->supplier,
                     'PO / Invoice' => trim(($node->po_reference ?? '') . ($node->invoice_reference ? ' / ' . $node->invoice_reference : ''), ' /') ?: null,
                 ]),
@@ -182,7 +182,7 @@ class AssetTimelineController extends Controller
                     'figures' => array_filter([
                         'Sale Reference' => $sale->reference,
                         'Asset' => ['asset' => $node],
-                        'Sale Price' => 'LKR ' . number_format((float) $sale->price, 2),
+                        'Sale Price' => money((float) $sale->price),
                         'Approval Status' => 'Approved',
                         'Buyer' => $sale->buyer_name,
                         'Buyer Contact' => $sale->buyer_contact,
@@ -264,18 +264,18 @@ class AssetTimelineController extends Controller
                     'Type' => $typeLabel,
                     'Parent Asset' => $mod->asset ? [
                         'asset' => $mod->asset,
-                        'suffix' => ' (LKR ' . number_format((float) ($mod->parent_original_cost ?? $mod->asset->cost), 2) . ')',
+                        'suffix' => ' · ' . money((float) ($mod->parent_original_cost ?? $mod->asset->cost)),
                     ] : null,
                     'Component Added' => $mod->componentAsset ? [
                         'asset' => $mod->componentAsset,
-                        'suffix' => ' (LKR ' . number_format((float) ($mod->component_original_cost ?? $mod->componentAsset->cost), 2) . ')',
+                        'suffix' => ' · ' . money((float) ($mod->component_original_cost ?? $mod->componentAsset->cost)),
                     ] : $mod->added_asset,
                     'Component Removed' => $mod->removedAsset ? [
                         'asset' => $mod->removedAsset,
-                        'suffix' => $mod->removed_price !== null ? ' (LKR ' . number_format((float) $mod->removed_price, 2) . ')' : '',
-                    ] : ($mod->removed_asset ? $mod->removed_asset . ($mod->removed_price !== null ? ' (LKR ' . number_format((float) $mod->removed_price, 2) . ')' : '') : null),
+                        'suffix' => $mod->removed_price !== null ? ' · ' . money((float) $mod->removed_price) : '',
+                    ] : ($mod->removed_asset ? $mod->removed_asset . ($mod->removed_price !== null ? ' · ' . money((float) $mod->removed_price) : '') : null),
                     'Resulting Asset' => $mod->resultAsset ? ['asset' => $mod->resultAsset] : null,
-                    'New Value' => $mod->new_value !== null ? 'LKR ' . number_format((float) $mod->new_value, 2) : null,
+                    'New Value' => $mod->new_value !== null ? money((float) $mod->new_value) : null,
                     'Authorized By' => $mod->authorized_by,
                 ]),
                 'comments' => $mod->comments,
@@ -295,7 +295,7 @@ class AssetTimelineController extends Controller
             }
 
             $delta = (float) $reval->revalued_amount - (float) $reval->previous_value;
-            $deltaFormatted = ($delta >= 0 ? '+' : '-') . 'LKR ' . number_format(abs($delta), 2);
+            $deltaFormatted = money($delta);
 
             $events[] = (object) [
                 'type' => 'revalued',
@@ -312,11 +312,11 @@ class AssetTimelineController extends Controller
                     'Revaluation ID' => $reval->reference,
                     'Predecessor Asset' => $reval->asset ? ['asset' => $reval->asset] : null,
                     'Successor Asset' => $reval->resultAsset ? ['asset' => $reval->resultAsset] : null,
-                    'Previous Carrying Value' => 'LKR ' . number_format((float) $reval->previous_value, 2),
-                    'Revalued Amount' => 'LKR ' . number_format((float) $reval->revalued_amount, 2) . " ({$deltaFormatted})",
+                    'Previous Carrying Value' => money((float) $reval->previous_value),
+                    'Revalued Amount' => money((float) $reval->revalued_amount) . " · change {$deltaFormatted}",
                     'New Useful Life' => $reval->new_useful_life_months ? $reval->new_useful_life_months . ' months' : null,
                     'New Monthly Depreciation' => $reval->resultAsset?->monthly_depreciation !== null
-                        ? 'LKR ' . number_format((float) $reval->resultAsset->monthly_depreciation, 2)
+                        ? money((float) $reval->resultAsset->monthly_depreciation)
                         : null,
                     'Reason' => $reval->reason,
                     'Authorized By' => $reval->authorized_by,

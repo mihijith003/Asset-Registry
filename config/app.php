@@ -73,6 +73,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Currency Symbol
+    |--------------------------------------------------------------------------
+    |
+    | Shown before every money figure by the money() helper (app/helpers.php),
+    | in form field addons and in the dashboard charts. The one place to change it.
+    |
+    */
+
+    'currency_symbol' => env('APP_CURRENCY_SYMBOL', 'Rs.'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

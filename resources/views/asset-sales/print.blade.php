@@ -47,18 +47,18 @@
         @endif
     </table>
 
-    <h2>Amounts (LKR)</h2>
+    <h2>Amounts</h2>
     <table class="details">
         @if ($recordedCost !== null)
-            <tr><th>Recorded cost</th><td class="num">{{ number_format($recordedCost, 2) }}</td></tr>
-            <tr><th>Accumulated depreciation (to sale date)</th><td class="num">{{ number_format($accumulated, 2) }}</td></tr>
-            <tr><th>Net book value</th><td class="num">{{ number_format($bookValue, 2) }}</td></tr>
+            <tr><th>Recorded cost</th><td class="num">{{ money($recordedCost) }}</td></tr>
+            <tr><th>Accumulated depreciation (to sale date)</th><td class="num">{{ money($accumulated) }}</td></tr>
+            <tr><th>Net book value</th><td class="num">{{ money($bookValue) }}</td></tr>
         @endif
-        <tr class="total-row"><th>Sale price</th><td class="num">{{ number_format($sale->price, 2) }}</td></tr>
+        <tr class="total-row"><th>Sale price</th><td class="num">{{ money($sale->price) }}</td></tr>
         @if ($difference !== null)
             <tr>
                 <th>{{ $difference >= 0 ? 'Gain on sale' : 'Loss on sale' }}</th>
-                <td class="num">{{ number_format(abs($difference), 2) }}</td>
+                <td class="num">{{ money(abs($difference)) }}</td>
             </tr>
         @endif
     </table>

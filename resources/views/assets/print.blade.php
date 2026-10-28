@@ -39,9 +39,9 @@
                     <td>{{ $row->asset->assetType->type_name ?? '-' }} / {{ trim($row->asset->subType->sub_type_name ?? '-') }}</td>
                     <td>{{ trim(($row->asset->brand?->name ?? $row->asset->brand_name ?? '') . ' ' . ($row->asset->model ?? '')) ?: '-' }}</td>
                     <td>{{ $row->allocation?->label ?? ($row->asset->location ?: 'Unallocated') }}</td>
-                    <td class="num">{{ number_format($row->asset->cost, 2) }}</td>
-                    <td class="num">{{ number_format($row->accumulated, 2) }}</td>
-                    <td class="num">{{ number_format($row->book_value, 2) }}</td>
+                    <td class="num">{{ money($row->asset->cost) }}</td>
+                    <td class="num">{{ money($row->accumulated) }}</td>
+                    <td class="num">{{ money($row->book_value) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="7">No assets match the selected filters.</td></tr>
@@ -50,9 +50,9 @@
         <tfoot>
             <tr>
                 <td colspan="4">Total ({{ $rows->count() }} {{ \Illuminate\Support\Str::plural('asset', $rows->count()) }})</td>
-                <td class="num">{{ number_format($rows->sum(fn ($r) => (float) $r->asset->cost), 2) }}</td>
-                <td class="num">{{ number_format($rows->sum('accumulated'), 2) }}</td>
-                <td class="num">{{ number_format($rows->sum('book_value'), 2) }}</td>
+                <td class="num">{{ money($rows->sum(fn ($r) => (float) $r->asset->cost)) }}</td>
+                <td class="num">{{ money($rows->sum('accumulated')) }}</td>
+                <td class="num">{{ money($rows->sum('book_value')) }}</td>
             </tr>
         </tfoot>
     </table>

@@ -33,9 +33,9 @@
                     <td class="mono">{{ $row->sale->reference }}</td>
                     <td class="mono">{{ $row->asset->asset_code ?? 'Asset #' . $row->sale->asset_id }}</td>
                     <td>{{ $row->asset?->assetType->type_name ?? '-' }} / {{ trim($row->asset?->subType->sub_type_name ?? '-') }}</td>
-                    <td class="num">{{ $row->asset ? number_format($row->asset->cost, 2) : '-' }}</td>
-                    <td class="num">{{ $row->book_value !== null ? number_format($row->book_value, 2) : '-' }}</td>
-                    <td class="num">{{ number_format($row->sale->price, 2) }}</td>
+                    <td class="num">{{ $row->asset ? money($row->asset->cost) : '-' }}</td>
+                    <td class="num">{{ $row->book_value !== null ? money($row->book_value) : '-' }}</td>
+                    <td class="num">{{ money($row->sale->price) }}</td>
                     <td class="num">@include('partials.signed-amount', ['amount' => $row->gain])</td>
                     <td>{{ $row->sale->buyer_name ?: '-' }}{{ $row->sale->buyer_contact ? ' (' . $row->sale->buyer_contact . ')' : '' }}</td>
                     <td>{{ $row->sale->payment_method ?: '-' }}</td>
@@ -48,8 +48,8 @@
         <tfoot>
             <tr>
                 <td colspan="5">Total ({{ $rows->count() }} {{ \Illuminate\Support\Str::plural('sale', $rows->count()) }})</td>
-                <td class="num">{{ number_format($totals->book_value, 2) }}</td>
-                <td class="num">{{ number_format($totals->proceeds, 2) }}</td>
+                <td class="num">{{ money($totals->book_value) }}</td>
+                <td class="num">{{ money($totals->proceeds) }}</td>
                 <td class="num">@include('partials.signed-amount', ['amount' => $totals->gain])</td>
                 <td colspan="3"></td>
             </tr>

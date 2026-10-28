@@ -31,8 +31,8 @@
                     <td class="mono">{{ $row->disposal->reference }}</td>
                     <td class="mono">{{ $row->asset->asset_code ?? 'Asset #' . $row->disposal->asset_id }}</td>
                     <td>{{ $row->asset?->assetType->type_name ?? '-' }} / {{ trim($row->asset?->subType->sub_type_name ?? '-') }}</td>
-                    <td class="num">{{ $row->asset ? number_format($row->asset->cost, 2) : '-' }}</td>
-                    <td class="num">{{ $row->book_value !== null ? number_format($row->book_value, 2) : '-' }}</td>
+                    <td class="num">{{ $row->asset ? money($row->asset->cost) : '-' }}</td>
+                    <td class="num">{{ $row->book_value !== null ? money($row->book_value) : '-' }}</td>
                     <td>{{ $row->disposal->method }}</td>
                     <td>{{ \App\Http\Controllers\AssetDisposalController::APPROVAL_STATUSES[$row->disposal->approval_status] ?? ucfirst($row->disposal->approval_status) }}</td>
                     <td>{{ $row->disposal->authorized_by ?: '-' }}</td>
@@ -44,7 +44,7 @@
         <tfoot>
             <tr>
                 <td colspan="5">Net book value written off (approved disposals)</td>
-                <td class="num">{{ number_format($totals->written_off, 2) }}</td>
+                <td class="num">{{ money($totals->written_off) }}</td>
                 <td colspan="3"></td>
             </tr>
         </tfoot>
@@ -60,7 +60,7 @@
         @endif
         @if ($totals->pending_count)
             <span>Pending approval (not yet written off): <strong>{{ $totals->pending_count }}</strong>,
-                net book value <strong>{{ number_format($totals->pending_book_value, 2) }}</strong></span>
+                net book value <strong>{{ money($totals->pending_book_value) }}</strong></span>
         @endif
     </div>
 @endsection

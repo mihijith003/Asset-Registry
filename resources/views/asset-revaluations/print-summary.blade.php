@@ -32,8 +32,8 @@
                     <td>{{ $revaluation->revaluation_date?->format('Y-m-d') ?? '-' }}</td>
                     <td class="mono">{{ $row->asset->asset_code ?? 'Asset #' . $revaluation->asset_id }}</td>
                     <td>{{ $row->asset?->assetType->type_name ?? '-' }} / {{ trim($row->asset?->subType->sub_type_name ?? '-') }}</td>
-                    <td class="num">{{ $revaluation->previous_value !== null ? number_format($revaluation->previous_value, 2) : '-' }}</td>
-                    <td class="num">{{ number_format($revaluation->revalued_amount, 2) }}</td>
+                    <td class="num">{{ $revaluation->previous_value !== null ? money($revaluation->previous_value) : '-' }}</td>
+                    <td class="num">{{ money($revaluation->revalued_amount) }}</td>
                     <td class="num">@include('partials.signed-amount', ['amount' => $row->change])</td>
                     <td class="num">{{ $revaluation->new_useful_life_months ? $revaluation->new_useful_life_months . ' months' : '-' }}</td>
                     <td class="mono">{{ $revaluation->resultAsset->asset_code ?? 'Revalued in place' }}</td>

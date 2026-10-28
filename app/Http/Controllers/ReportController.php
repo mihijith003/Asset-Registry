@@ -7,6 +7,7 @@ use App\Models\AssetDisposal;
 use App\Models\AssetModification;
 use App\Models\AssetRevaluation;
 use App\Models\AssetSale;
+use App\Support\AgeingReport;
 use App\Support\Depreciation;
 use App\Support\PeriodMovement;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -16,10 +17,17 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
-// Period Report: movement summary (Opening -> Closing NBV per asset type) for a chosen date range.
+/**
+ * Reporting page, one tab per report (?tab=period | ageing, default period). The tab decides what is COMPUTED: only
+ * the active tab's report is built, and each tab reads only its own filters from the query string.
+ *  - Period Report: movement summary (Opening -> Closing NBV per asset type) and detail sections for a date range.
+ *  - Ageing Report: the assets held at an "as at" date, by type / sub type and age band.
+ */
 class ReportController extends Controller
 {
     use FiltersByAssetType;
+
+    public const TABS = ['period' => 'Period Report', 'ageing' => 'Ageing Report'];
 
     /** Detail sections below the movement summary, in display order. */
     public const SECTIONS = [
@@ -33,12 +41,53 @@ class ReportController extends Controller
 
     public function index(Request $request): View
     {
-        return view('reports.period', $this->report($request));
+        $tab = $this->tab($request);
+        $data = $tab === 'ageing' ? $this->ageing($request) : $this->report($request);
+
+        return view('reports.reporting', ['tab' => $tab, 'tabs' => self::TABS] + $data);
     }
 
+    
+     //Print Summary of ONE tab, with that tab's filters (same query string as the screen).
+    
     public function print(Request $request): View
     {
-        return view('reports.period-print', $this->report($request));
+        return $this->tab($request) === 'ageing'
+            ? view('reports.ageing-print', $this->ageing($request))
+            : view('reports.period-print', $this->report($request));
+    }
+
+    
+      //The active tab: ?tab= when it names a tab, else the Period Report.
+     
+    private function tab(Request $request): string
+    {
+        $tab = $request->query('tab');
+
+        return is_string($tab) && isset(self::TABS[$tab]) ? $tab : 'period';
+    }
+
+    
+    //Ageing Report: ?as_at= (default today, not in the future) and the type / sub type filter.
+     
+    private function ageing(Request $request): array
+    {
+        $filters = $this->typeFilters($request);
+        $input = ['as_at' => $request->query->has('as_at') ? $request->query('as_at') : Carbon::today()->toDateString()];
+
+        $validator = Validator::make($input, ['as_at' => 'required|date|before_or_equal:today'],
+            ['as_at.before_or_equal' => 'The as-at date cannot be in the future.']);
+
+        if ($validator->fails()) {
+            throw (new ValidationException($validator))->redirectTo($request->fullUrlWithoutQuery(['as_at']));
+        }
+
+        $asAt = Carbon::parse($input['as_at'])->startOfDay();
+        $ageing = (new AgeingReport($asAt, $filters))->run();
+
+        $filterFields = [['name' => 'as_at', 'label' => 'As at', 'type' => 'date', 'default' => $input['as_at']]];
+
+        return ['ageing' => $ageing, 'asAt' => $asAt->toDateString(), 'filterFields' => $filterFields];
     }
 
     private function report(Request $request): array
@@ -246,9 +295,9 @@ class ReportController extends Controller
         return $sections;
     }
 
-    /**
-     * Quick presets for the period selector. "Month End" is Last Month.
-     */
+    
+    //Quick presets for the period selector. "Month End" is Last Month.
+    
     private function presets(): array
     {
         $today = Carbon::today();

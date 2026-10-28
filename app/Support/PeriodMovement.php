@@ -113,7 +113,7 @@ class PeriodMovement
                     }
                 } elseif (abs($engine) > self::TOLERANCE) {
                     $errors[] = ['type' => $typeId, 'amount' => $engine, 'label' => $io['label']
-                        . ': value in ' . number_format($io['in'] ?? 0, 2) . ' vs value out ' . number_format($io['out'] ?? 0, 2)];
+                        . ': value in ' . money($io['in'] ?? 0) . ' vs value out ' . money($io['out'] ?? 0)];
                 }
             }
         }
@@ -299,6 +299,7 @@ class PeriodMovement
             'valueAt' => [],   // "kind:ref" => ['nbv' => .., 'cost' => ..] at each in-period entry / exit (detail sections)
             'exit' => null,    // the last exit: ['date' => .., 'nbv' => .., 'cost' => ..]
             'intervals' => [], 'held' => false,
+            'heldAtOpening' => false,   // held at the end of openingDate (a fully written-down asset can be held at 0)
         ];
 
         $held = false;
@@ -311,6 +312,7 @@ class PeriodMovement
                 break;   // after the closing date (or today): has not happened for this report
             }
             if (! $openingDone && $date > $this->openingDate) {
+                $t->heldAtOpening = $held;
                 $t->opening = $held ? $this->value($asset, $this->openingDate, 'after') : 0.0;
                 $openingDone = true;
             }
@@ -386,7 +388,8 @@ class PeriodMovement
         }
 
         if (! $openingDone) {
-            $t->opening = $held && $holdStart <= $this->openingDate ? $this->value($asset, $this->openingDate, 'after') : 0.0;
+            $t->heldAtOpening = $held && $holdStart <= $this->openingDate;
+            $t->opening = $t->heldAtOpening ? $this->value($asset, $this->openingDate, 'after') : 0.0;
         }
         if ($held) {
             $intervals[] = [$holdStart, null];
@@ -465,11 +468,11 @@ class PeriodMovement
         return round($this->inForce($asset, $date, $mode)->sum(fn ($layer) => (float) $layer->cost), 2);
     }
 
-    private function inForce(Asset $asset, string $date, string $mode): Collection
+    private static function inForce(Asset $asset, string $date, string $mode): Collection
     {
-        return $asset->layers->filter(function ($layer) use ($date, $mode) {
-            $s = $this->d($layer->start_date);
-            $e = $this->d($layer->end_date);
+        return $asset->layers->filter(static function ($layer) use ($date, $mode) {
+            $s = self::d($layer->start_date);
+            $e = self::d($layer->end_date);
 
             return match ($mode) {
                 'after' => $s <= $date && ($e === null || $e > $date),
@@ -488,6 +491,49 @@ class PeriodMovement
     public function bookValue(Asset $asset, string $date): array
     {
         return ['cost' => $this->cost($asset, $date, 'during'), 'nbv' => $this->value($asset, $date, 'during')];
+    }
+
+    /**
+     * Every asset HELD at the end of $date, decided by date from the event history exactly as the movement summary's
+     * opening balance is (withTrashed: sold / disposed / superseded / merged later still count): the "opening" of a
+     * one-day period starting the day after. Cost and NBV are from the layers in force at the end of that day.
+     * A layer is written down when it has charged its whole useful life (its NBV is then its residual value).
+     *
+     * @return Collection<object{asset: Asset, cost: float, nbv: float, writtenDown: bool}>
+     */
+    public static function heldAt(Carbon $date, array $filters = [], ?Carbon $today = null): Collection
+    {
+        $next = $date->copy()->startOfDay()->addDay();
+        $movement = new self($next, $next, $filters, $today);
+        $d = $date->toDateString();
+
+        return $movement->run()->traces
+            ->filter(fn ($t) => $t->heldAtOpening)
+            ->map(function ($t) use ($movement, $d) {
+                return (object) [
+                    'asset' => $t->asset,
+                    'cost' => $movement->cost($t->asset, $d, 'after'),
+                    'nbv' => $t->opening,
+                    'writtenDown' => self::writtenDownAt($t->asset, $d),
+                ];
+            })
+            ->values();
+    }
+
+    /**
+     * Fully depreciated at the end of $date: every depreciation layer in force has charged its whole useful life, so
+     * the net book value is down to the residual value. The one definition used by the Ageing Report and the
+     * dashboard. An asset with no depreciating layer (null life / monthly amount) is never written down.
+     */
+    public static function writtenDownAt(Asset $asset, string $date): bool
+    {
+        $layers = self::inForce($asset, $date, 'after');
+
+        return $layers->isNotEmpty() && $layers->every(function ($layer) use ($date) {
+            $life = (int) $layer->useful_life_months;
+
+            return $life > 0 && (float) $layer->monthly_depreciation > 0 && self::charged($layer, $date)[0] >= $life;
+        });
     }
 
     // ------------------------------------------------------------------ depreciation detail
@@ -551,16 +597,16 @@ class PeriodMovement
      * [whole months charged, amount charged] on one layer from its start up to $date (the rules of
      * Depreciation::accumulated: bounded by life and end_date; null life / monthly = not depreciated).
      */
-    private function charged($layer, string $date): array
+    private static function charged($layer, string $date): array
     {
         $life = (int) $layer->useful_life_months;
         $monthly = (float) $layer->monthly_depreciation;
-        $start = $this->d($layer->start_date);
+        $start = self::d($layer->start_date);
         if ($life <= 0 || $monthly <= 0 || (float) $layer->cost <= 0 || ! $start || $start > $date) {
             return [0, 0.0];
         }
 
-        $end = $this->d($layer->end_date);
+        $end = self::d($layer->end_date);
         $until = $end && $end < $date ? $end : $date;
         $months = min($life, Depreciation::monthsBetween(Carbon::parse($start), Carbon::parse($until)));
 
@@ -572,7 +618,7 @@ class PeriodMovement
         return $this->accCache[$layer->id . '@' . $date] ??= Depreciation::accumulated([$layer], Carbon::parse($date));
     }
 
-    private function d($value): ?string
+    private static function d($value): ?string
     {
         if ($value === null || $value === '') {
             return null;

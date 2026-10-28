@@ -7,6 +7,7 @@ use App\Http\Controllers\AssetModificationController;
 use App\Http\Controllers\AssetRevaluationController;
 use App\Http\Controllers\AssetSaleController;
 use App\Http\Controllers\AssetTimelineController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepreciationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
@@ -33,9 +34,7 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
 // Profile management
 Route::middleware('auth')->group(function () {
@@ -75,10 +74,10 @@ Route::middleware(['auth', 'permission:register assets'])->group(function () {
     Route::get('/depreciation', [DepreciationController::class, 'index'])->name('depreciation.index');
 });
 
-// Period Report (same permission as the depreciation page)
+// Reporting: Period Report and Ageing Report tabs (same permission as the depreciation page)
 Route::middleware(['auth', 'permission:register assets'])->group(function () {
-    Route::get('/reports/period', [ReportController::class, 'index'])->name('reports.period');
-    Route::get('/reports/period/print', [ReportController::class, 'print'])->name('reports.period.print');
+    Route::get('/reports/period', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/period/print', [ReportController::class, 'print'])->name('reports.print');
 });
 
 Route::middleware(['auth', 'permission:modify assets'])->group(function () {

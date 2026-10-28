@@ -1,15 +1,15 @@
-{{-- Period Report print view (route: reports.period.print) - same query parameters as the screen --}}
+{{-- Period Report print view (route: reports.print, tab=period) - same query parameters as the screen --}}
 @extends('layouts.print')
 
-@section('title', 'Period Report')
-@section('back', route('reports.period', request()->query()))
+@section('title', \App\Http\Controllers\ReportController::TABS['period'])
+@section('back', route('reports.index', request()->query()))
 @section('orientation', 'landscape')
-@section('doc-title', 'Period Report')
+@section('doc-title', \App\Http\Controllers\ReportController::TABS['period'])
 @section('doc-ref', $period)
 
 @section('content')
     @include('partials.print-header', [
-        'title' => 'Period Report - Movement Summary',
+        'title' => \App\Http\Controllers\ReportController::TABS['period'] . ' - Movement Summary',
         'filters' => ['Period' => $period],
         'note' => $closingNote,
     ])

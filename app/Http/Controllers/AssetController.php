@@ -71,9 +71,7 @@ class AssetController extends Controller
     }
 
     /**
-     * Printable QR label sheet for the same current assets and filters as the registry list. ?start=N leaves the
-     * first N-1 label slots blank so a part-used sticker sheet can be reused; ?asset=<id> (a registry row's Label
-     * button) restricts the sheet to that one asset, still within active() and the filter.
+     * Printable QR label sheet for the same current assets and filters as the registry list. 
      */
     public function labels(Request $request): View
     {
@@ -138,7 +136,7 @@ class AssetController extends Controller
                     $monthly = (float) $value;
 
                     if ($months > 0 && round($monthly * $months, 2) > round($cost, 2)) {
-                        $fail('Total depreciation (' . number_format($monthly * $months, 2) . ') cannot exceed the asset cost (' . number_format($cost, 2) . ') — the asset cannot depreciate below zero.');
+                        $fail('Total depreciation of ' . money($monthly * $months) . ' cannot exceed the asset cost of ' . money($cost) . ' — the asset cannot depreciate below zero.');
                     }
                 },
             ],
@@ -168,7 +166,7 @@ class AssetController extends Controller
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action' => 'Asset Registered',
-            'description' => "Asset {$asset->asset_code} (" . trim("{$brandText} {$asset->model}") . ") registered. " . number_format($asset->cost, 2),
+            'description' => "Asset {$asset->asset_code} (" . trim("{$brandText} {$asset->model}") . ") registered. " . money($asset->cost),
             'status' => 1,
         ]);
 

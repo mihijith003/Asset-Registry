@@ -58,17 +58,20 @@
                     <!-- Revalued Amount -->
                     <div class="form-group">
                         <label for="revalued_amount" class="form-label">
-                            Revalued Amount (LKR) <span class="required">*</span>
+                            Revalued Amount <span class="required">*</span>
                         </label>
-                        <input type="number" 
-                               id="revalued_amount" 
-                               name="revalued_amount" 
-                               value="{{ old('revalued_amount') }}" 
-                               step="0.01" 
-                               min="0" 
-                               required 
-                               placeholder="0.00" 
-                               class="form-control">
+                        <div class="input-group">
+                            <span class="input-group-addon">{{ currency_symbol() }}</span>
+                            <input type="number" 
+                                   id="revalued_amount" 
+                                   name="revalued_amount" 
+                                   value="{{ old('revalued_amount') }}" 
+                                   step="0.01" 
+                                   min="0" 
+                                   required 
+                                   placeholder="0.00" 
+                                   class="form-control">
+                        </div>
                         @error('revalued_amount')
                             <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
                         @enderror
@@ -95,37 +98,43 @@
                         @enderror
                     </div>
 
-                    <!-- New Monthly Depreciation (LKR) -->
+                    <!-- New Monthly Depreciation -->
                     <div class="form-group">
                         <label for="monthly_depreciation" class="form-label">
-                            New Monthly Depreciation (LKR) <span class="required">*</span>
+                            New Monthly Depreciation <span class="required">*</span>
                         </label>
-                        <input type="number"
-                               id="monthly_depreciation"
-                               name="monthly_depreciation"
-                               value="{{ old('monthly_depreciation') }}"
-                               step="0.01"
-                               min="0.01"
-                               required
-                               placeholder="e.g. 6000.00"
-                               class="form-control">
+                        <div class="input-group">
+                            <span class="input-group-addon">{{ currency_symbol() }}</span>
+                            <input type="number"
+                                   id="monthly_depreciation"
+                                   name="monthly_depreciation"
+                                   value="{{ old('monthly_depreciation') }}"
+                                   step="0.01"
+                                   min="0.01"
+                                   required
+                                   placeholder="e.g. 6000.00"
+                                   class="form-control">
+                        </div>
                         @error('monthly_depreciation')
                             <p style="color: red; font-size: 0.8em; margin-top: 0.25rem;">{{ $message }}</p>
                         @enderror
                     </div>
 
-                    <!-- Derived Residual Value (LKR) -->
+                    <!-- Derived Residual Value -->
                     <div class="form-group">
                         <label for="reval_derived_residual" class="form-label">
-                            Residual Value (LKR)
+                            Residual Value
                         </label>
-                        <input type="text"
-                               id="reval_derived_residual"
-                               class="form-control"
-                               readonly
-                               tabindex="-1"
-                               value="—"
-                               style="background-color: var(--bg-main); font-weight: 500;">
+                        <div class="input-group">
+                            <span class="input-group-addon">{{ currency_symbol() }}</span>
+                            <input type="text"
+                                   id="reval_derived_residual"
+                                   class="form-control"
+                                   readonly
+                                   tabindex="-1"
+                                   value="—"
+                                   style="background-color: var(--bg-main); font-weight: 500;">
+                        </div>
                         <small id="reval_derived_residual_hint" class="form-hint">Calculated: Revalued Amount &minus; (New Monthly Depreciation &times; New Useful Life)</small>
                     </div>
 
@@ -332,10 +341,10 @@
                                 @endif
                             </td>
                             <td style="text-align: right; font-weight: 500;" data-order="{{ $revaluation->previous_value }}">
-                                {{ number_format($revaluation->previous_value, 2) }}
+                                {{ money($revaluation->previous_value) }}
                             </td>
                             <td style="text-align: right; font-weight: 500;" data-order="{{ $revaluation->revalued_amount }}">
-                                {{ number_format($revaluation->revalued_amount, 2) }}
+                                {{ money($revaluation->revalued_amount) }}
                             </td>
                             <td style="text-align: center;">
                                 @if ($revaluation->new_useful_life_months)

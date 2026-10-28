@@ -4,7 +4,7 @@
     Everything shown here was loaded in the controller - no queries in these loops.
 --}}
 @php
-    $money = fn ($v) => $v === null ? '-' : number_format($v, 2);
+    $money = fn ($v) => $v === null ? '-' : money($v);
     $kind = fn ($asset) => $asset ? trim(($asset->assetType->type_name ?? '-') . ' / ' . trim($asset->subType->sub_type_name ?? '-')) : '-';
     $code = fn ($asset, $id = null) => $asset->asset_code ?? ($id ? 'Asset #' . $id : '-');
     $tableClass = $print ? 'data' : 'table';

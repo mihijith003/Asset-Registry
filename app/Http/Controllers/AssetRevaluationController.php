@@ -120,7 +120,7 @@ class AssetRevaluationController extends Controller
                     $monthly = (float) $value;
 
                     if ($months > 0 && round($monthly * $months, 2) > round($revaluedAmount, 2)) {
-                        $fail('Total depreciation (' . number_format($monthly * $months, 2) . ') cannot exceed the revalued amount (' . number_format($revaluedAmount, 2) . ') — the asset cannot depreciate below zero.');
+                        $fail('Total depreciation of ' . money($monthly * $months) . ' cannot exceed the revalued amount of ' . money($revaluedAmount) . ' — the asset cannot depreciate below zero.');
                     }
                 },
             ],
@@ -170,8 +170,8 @@ class AssetRevaluationController extends Controller
                 ActivityLog::create([
                     'user_id' => Auth::id(),
                     'action' => 'Asset Revalued',
-                    'description' => "Asset {$asset->asset_code} revalued to " . number_format($validated['revalued_amount'], 2)
-                        . " (previous value: " . number_format($previousValue, 2) . ")"
+                    'description' => "Asset {$asset->asset_code} revalued to " . money($validated['revalued_amount'])
+                        . " (previous value: " . money($previousValue) . ")"
                         . ($successor ? " -> new asset {$successor->asset_code}" : ''),
                     'status' => 1,
                 ]);
